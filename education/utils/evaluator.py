@@ -7,6 +7,7 @@ import logging
 from typing import List, Dict, Any, Tuple
 from datetime import datetime
 import re
+from difflib import SequenceMatcher
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,9 @@ class PersonalizedStudentEvaluator:
         except Exception as e:
             logger.error(f"❌ 答案检查失败: {e}")
             is_correct = self._strict_answer_check(question, student_answer)
-            return is_correct, f"模型调用失败，使用备用判断: {'正确' if is_correct else '错误'}"
+            # 使用规则化可解释理由（即使模型调用失败也要有详细理由）
+            reason = self._build_reason_for_strict(question, student_answer, bool(is_correct))
+            return is_correct, reason
     
     def _parse_model_response(self, response: str) -> Tuple[bool, str]:
         """解析模型响应"""

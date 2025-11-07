@@ -1,69 +1,87 @@
 """
-系统核心模块
-整合所有功能组件,提供统一的接口
-优化版：实现真正的自适应出题、实时题目调整、智能题目选择
+系统核心模块 - 智能个性化版本（增强版）
+集成RAG引擎，使用盘古7B进行智能出题和评估
 """
 
 import logging
-import asyncio
-from typing import List, Dict, Any, Optional
+import random
+from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import json
-import plotly.graph_objects as go
-import random
+import asyncio
 
 logger = logging.getLogger(__name__)
 
 
-class EducationSystemCore:
-    """教育评估系统核心（优化版）"""
+class SmartEducationSystem:
+    """智能教育评估系统核心（增强版）"""
     
     def __init__(self, config):
-        """
-        初始化系统核心
-        
-        Args:
-            config: 配置模块
-        """
         self.config = config
-        
-        # 初始化各个组件
         self.question_db = None
         self.embedding_model = None
         self.pangu_model = None
         self.evaluator = None
         self.visualizer = None
-        self.rag_engine = None
         self.bkt_algorithm = None
-        
-        # 运行时状态
+        self.rag_engine = None
+        self.question_generator = None
         self.models_loaded = False
         
-        logger.info("✅ 系统核心初始化完成（自适应增强版）")
+        logger.info("✅ 智能教育系统核心初始化（增强版）")
     
     def initialize(self):
-        """初始化所有组件"""
-        logger.info("🔄 正在初始化系统组件...")
+        """初始化系统组件"""
+        logger.info("🔄 初始化系统组件...")
         
         try:
-            # 导入必要的模块
-            from models import create_llm_model, create_embedding_model
+            from models.llm_models import create_llm_model
+            from models.embedding_model import create_embedding_model
             from data_management.question_db import create_question_database
             from utils.evaluator import create_evaluator
             from visualization.kg_visualizer import create_visualizer
+            from utils.bkt_algorithm import create_bkt_algorithm
+            from knowledge_management.rag_engine import create_rag_engine
+            from models.embedding_model import lightrag_embedding_func
+            from utils.question_generator import create_question_generator  # 修复：改为 utils
             
             # 1. 初始化题库
             logger.info("📚 初始化题库...")
             self.question_db = create_question_database(str(self.config.QUESTION_DB))
             
-            # 2. 初始化模型
-            logger.info("🚀 初始化盘古7B模型（单例模式）...")
-            
+            # 2. 初始化嵌入模型
+            logger.info("🔤 初始化嵌入模型...")
             self.embedding_model = create_embedding_model(
                 self.config.BGE_M3_MODEL_PATH,
                 self.config.EMBEDDING_MODEL_CONFIG
             )
             
+            # 3. 初始化RAG引擎
+            logger.info("🧠 初始化RAG引擎...")
+            self.rag_engine = create_rag_engine(
+                self.config.LIGHTRAG_CONFIG,
+                lambda texts: lightrag_embedding_func(texts, self.embedding_model)
+            )
+            
+            # 异步初始化RAG
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(self.rag_engine.initialize())
+                logger.info("✅ RAG引擎初始化成功")
+                
+                # 构建知识图谱
+                logger.info("🔄 正在构建知识图谱...")
+                from knowledge_management.rag_engine import QuestionRAGManager
+                rag_manager = QuestionRAGManager(self.rag_engine)
+                questions = self.question_db.get_all_questions()
+                loop.run_until_complete(rag_manager.build_kg_from_questions(questions))
+                logger.info("✅ 知识图谱构建完成")
+            finally:
+                loop.close()
+            
+            # 4. 初始化盘古模型
+            logger.info("🚀 初始化盘古7B模型...")
             self.pangu_model = create_llm_model(
                 'pangu',
                 self.config.PANGU_MODEL_PATH,
@@ -72,168 +90,236 @@ class EducationSystemCore:
             
             logger.info("🔄 预加载盘古7B模型...")
             self.pangu_model.load_model()
-            logger.info("✅ 盘古7B模型预加载完成")
+            logger.info("✅ 盘古7B模型加载完成")
             
-            # 3. 初始化功能组件
-            logger.info("⚙️  初始化功能组件...")
-            
-            # BKT算法（增强版，支持持久化）
-            from utils.bkt_algorithm import create_bkt_algorithm
+            # 5. 初始化BKT算法
+            logger.info("🧠 初始化BKT算法...")
             self.bkt_algorithm = create_bkt_algorithm(
                 storage_path=str(self.config.DATA_DIR / "student_states.json")
             )
             
-            # 个性化评估器（需要BKT算法实例）
+            # 6. 初始化评估器（使用盘古7B）
+            logger.info("📊 初始化评估器（盘古7B驱动）...")
             self.evaluator = create_evaluator(
                 self.pangu_model,
                 self.bkt_algorithm,
                 self.config.EVALUATION_CONFIG
             )
             
+            # 7. 初始化题目生成器（使用盘古7B + RAG）
+            logger.info("📝 初始化题目生成器（盘古7B + LightRAG）...")
+            self.question_generator = create_question_generator(
+                self.pangu_model,
+                self.question_db,
+                self.rag_engine,
+                self.config.SMART_QUESTION_CONFIG,
+                use_real_generation=True  # 使用真实生成
+            )
+            
+            # 8. 初始化可视化
+            logger.info("🎨 初始化可视化组件...")
             self.visualizer = create_visualizer(
                 self.config.VISUALIZATION_CONFIG
             )
             
             self.models_loaded = True
-            logger.info("✅ 系统初始化完成 - 深度个性化自适应学习版")
+            logger.info("✅ 系统初始化完成 - 智能个性化自适应学习版（盘古7B驱动）")
             
         except Exception as e:
             logger.error(f"❌ 系统初始化失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             raise RuntimeError(f"系统初始化失败: {e}")
     
-    def get_knowledge_points(self) -> List[str]:
-        """获取所有知识点"""
-        return list(self.config.QUESTION_TYPES.keys())
-    
-    def _select_adaptive_question(self, student_id: str, knowledge_point: str,
-                                 current_mastery: float, available_questions: List[Dict[str, Any]],
-                                 used_questions: set) -> Optional[Dict[str, Any]]:
+    def _analyze_student_weakness(self, student_id: str) -> List[Tuple[str, str]]:
         """
-        根据学生当前掌握度智能选择题目（核心自适应逻辑）
+        分析学生薄弱知识点
+        
+        Returns:
+            List of (major_point, minor_point) tuples
+        """
+        weak_threshold = self.config.SMART_QUESTION_CONFIG['weak_threshold']
+        weak_points = self.bkt_algorithm.get_weak_knowledge_points(
+            student_id, threshold=weak_threshold
+        )
+        
+        if weak_points:
+            logger.info(f"📊 识别到 {len(weak_points)} 个薄弱知识点:")
+            for major, minor, mastery in weak_points[:3]:
+                logger.info(f"  - {major}/{minor}: {mastery:.3f}")
+        else:
+            logger.info(f"📊 学生 {student_id} 无历史数据或无明显薄弱点")
+        
+        return [(major, minor) for major, minor, _ in weak_points]
+    
+    def _get_unexplored_points(self, student_id: str) -> List[Tuple[str, str]]:
+        """
+        获取学生未探索的知识点
+        
+        Returns:
+            List of (major_point, minor_point)
+        """
+        all_knowledge_points = self.question_db.get_all_knowledge_points()
+        mastered_status = self.bkt_algorithm.get_all_mastery_status(student_id)
+        
+        unexplored = []
+        for major, minors in all_knowledge_points.items():
+            for minor in minors:
+                if major not in mastered_status or minor not in mastered_status[major]:
+                    unexplored.append((major, minor))
+        
+        return unexplored
+    
+    def _select_target_knowledge_point(self, student_id: str, 
+                                       weak_point_ratio: float = 0.7) -> Tuple[str, str]:
+        """
+        智能选择目标知识点
         
         Args:
             student_id: 学生ID
-            knowledge_point: 知识点
-            current_mastery: 当前掌握概率
-            available_questions: 可用题目列表
-            used_questions: 已使用的题目ID集合
+            weak_point_ratio: 选择薄弱点的概率
             
         Returns:
-            选中的题目，如果没有合适的题目则返回None
+            (major_point, minor_point)
         """
-        # 过滤掉已使用的题目
-        candidates = [q for q in available_questions if q.get('题号') not in used_questions]
+        # 获取薄弱知识点
+        weak_points = self._analyze_student_weakness(student_id)
         
-        if not candidates:
-            logger.warning(f"⚠️  没有可用的题目了")
-            return None
+        # 获取未探索知识点
+        unexplored_points = self._get_unexplored_points(student_id)
         
-        # 根据掌握度确定目标难度
-        if current_mastery < 0.3:
-            # 基础薄弱，选择简单题目
-            target_difficulty = "简单"
-            fallback_difficulties = ["中等"]
-            logger.debug(f"🎯 掌握度 {current_mastery:.3f} < 0.3，目标难度：简单")
-        elif current_mastery < 0.7:
-            # 中等水平，选择中等题目
-            target_difficulty = "中等"
-            fallback_difficulties = ["简单", "困难"]
-            logger.debug(f"🎯 掌握度 {current_mastery:.3f} 在 [0.3, 0.7)，目标难度：中等")
-        else:
-            # 掌握良好，选择困难题目
-            target_difficulty = "困难"
-            fallback_difficulties = ["中等"]
-            logger.debug(f"🎯 掌握度 {current_mastery:.3f} ≥ 0.7，目标难度：困难")
-        
-        # 先尝试目标难度
-        target_candidates = [q for q in candidates if q.get('难度') == target_difficulty]
-        
-        if target_candidates:
-            selected = random.choice(target_candidates)
-            logger.info(f"✅ 选中题目 {selected.get('题号')} (难度: {target_difficulty})")
+        # 决策：薄弱点 vs 探索新知识点
+        if weak_points and random.random() < weak_point_ratio:
+            # 优先加强薄弱点
+            selected = weak_points[0]  # 选择最薄弱的
+            logger.info(f"🎯 选择薄弱知识点: {selected[0]}/{selected[1]}")
             return selected
-        
-        # 如果目标难度题目不足，尝试备选难度
-        logger.debug(f"⚠️  目标难度 {target_difficulty} 题目不足，尝试备选难度")
-        for fallback_diff in fallback_difficulties:
-            fallback_candidates = [q for q in candidates if q.get('难度') == fallback_diff]
-            if fallback_candidates:
-                selected = random.choice(fallback_candidates)
-                logger.info(f"✅ 使用备选难度，选中题目 {selected.get('题号')} (难度: {fallback_diff})")
-                return selected
-        
-        # 如果所有难度都试过了，随机选择一个
-        logger.warning(f"⚠️  无法按难度筛选，随机选择题目")
-        selected = random.choice(candidates)
-        logger.info(f"✅ 随机选中题目 {selected.get('题号')} (难度: {selected.get('难度')})")
-        return selected
+        elif unexplored_points:
+            # 探索新知识点
+            selected = random.choice(unexplored_points)
+            logger.info(f"🔍 探索新知识点: {selected[0]}/{selected[1]}")
+            return selected
+        else:
+            # 随机选择一个知识点
+            all_kp = self.question_db.get_all_knowledge_points()
+            major = random.choice(list(all_kp.keys()))
+            minor = random.choice(all_kp[major])
+            logger.info(f"🎲 随机选择知识点: {major}/{minor}")
+            return major, minor
     
-    def start_assessment(self, knowledge_point: str, 
-                        student_id: str = "default_student",
-                        num_questions: int = 10) -> Optional[Dict[str, Any]]:
+    def _select_question_by_mastery(self, student_id: str, major_point: str,
+                                   minor_point: str, used_ids: set) -> Optional[Dict[str, Any]]:
         """
-        开始测评（真正的自适应版本）
+        根据掌握度选择题目（基于BKT算法）
         
         Args:
-            knowledge_point: 知识点
+            student_id: 学生ID
+            major_point: 知识点大类
+            minor_point: 知识点小类
+            used_ids: 已使用的题目ID
+            
+        Returns:
+            选中的题目
+        """
+        # 获取该知识点的所有题目
+        candidates = self.question_db.get_questions_by_minor_point(major_point, minor_point)
+        
+        # 过滤已使用的题目
+        candidates = [q for q in candidates if q.get('题号') not in used_ids]
+        
+        if not candidates:
+            logger.warning(f"⚠️  知识点 {major_point}/{minor_point} 无可用题目")
+            return None
+        
+        # 获取学生当前掌握度（BKT算法）
+        state = self.bkt_algorithm.get_student_state(student_id, major_point, minor_point)
+        mastery = state.mastery_prob
+        
+        # 根据掌握度确定难度范围（自适应）
+        if mastery < 0.3:
+            # 基础薄弱 - 选择简单题
+            difficulty_range = (0.0, 0.4)
+            logger.debug(f"🎯 掌握度 {mastery:.3f} - 自适应选择简单题")
+        elif mastery < 0.7:
+            # 中等水平 - 选择中等题
+            difficulty_range = (0.3, 0.7)
+            logger.debug(f"🎯 掌握度 {mastery:.3f} - 自适应选择中等题")
+        else:
+            # 掌握良好 - 选择困难题
+            difficulty_range = (0.6, 1.0)
+            logger.debug(f"🎯 掌握度 {mastery:.3f} - 自适应选择困难题")
+        
+        # 筛选合适难度的题目
+        suitable = [q for q in candidates 
+                   if difficulty_range[0] <= q.get('难度', 0.5) < difficulty_range[1]]
+        
+        if suitable:
+            selected = random.choice(suitable)
+        else:
+            # 如果没有合适难度的题目，随机选一个
+            logger.warning(f"⚠️  无合适难度题目，随机选择")
+            selected = random.choice(candidates)
+        
+        logger.info(f"✅ 选中题目 {selected.get('题号')} (难度: {selected.get('难度', 0.5):.2f})")
+        return selected
+    
+    def start_smart_assessment(self, student_id: str = "default_student",
+                              num_questions: int = 10) -> Optional[Dict[str, Any]]:
+        """
+        开始智能测评（基于BKT算法的自适应测评）
+        
+        Args:
             student_id: 学生ID
             num_questions: 题目数量
             
         Returns:
-            会话状态字典
+            会话状态
         """
         try:
-            logger.info(f"🎯 开始自适应测评: {knowledge_point}, 学生: {student_id}, 数量: {num_questions}")
+            logger.info(f"🚀 开始智能测评: 学生 {student_id}, 题数 {num_questions}")
+            logger.info(f"📊 使用BKT算法进行自适应题目选择...")
             
-            # 检查题库
-            all_available_questions = self.question_db.get_questions_filtered(
-                knowledge_point=knowledge_point
-            )
+            # 分析学生情况
+            profile = self.bkt_algorithm.generate_student_profile(student_id)
             
-            if not all_available_questions:
-                logger.error(f"❌ 题库中没有任何关于'{knowledge_point}'的题目")
-                return None
+            # 安全地访问字段
+            total_kp = profile.get('total_knowledge_points', 0)
+            overall_mastery = profile.get('overall_mastery', 0.0)
             
-            if len(all_available_questions) < num_questions:
-                logger.warning(f"⚠️  题库题目数({len(all_available_questions)})少于需求({num_questions})")
-                num_questions = len(all_available_questions)
+            logger.info(f"📊 学生档案: 整体掌握度 {overall_mastery:.3f}, "
+                       f"已学知识点 {total_kp}")
             
-            # 获取学生当前状态
-            state = self.bkt_algorithm.get_student_state(student_id, knowledge_point)
-            current_mastery = state.mastery_prob
+            # 选择第一个目标知识点（智能推荐）
+            major_point, minor_point = self._select_target_knowledge_point(student_id)
             
-            logger.info(f"📊 学生 {student_id} 在 {knowledge_point} 的当前掌握度: {current_mastery:.3f}")
-            
-            # 智能选择第一题
-            used_question_ids = set()
-            first_question = self._select_adaptive_question(
-                student_id, knowledge_point, current_mastery,
-                all_available_questions, used_question_ids
+            # 选择第一题（基于掌握度）
+            used_ids = set()
+            first_question = self._select_question_by_mastery(
+                student_id, major_point, minor_point, used_ids
             )
             
             if not first_question:
-                logger.error(f"❌ 无法选择第一题")
+                logger.error("❌ 无法选择第一题")
                 return None
             
-            used_question_ids.add(first_question.get('题号'))
+            used_ids.add(first_question.get('题号'))
             
             # 创建会话
             session = {
-                'knowledge_point': knowledge_point,
                 'student_id': student_id,
                 'total_questions': num_questions,
                 'current_index': 1,
                 'current_question': first_question,
-                'questions': [first_question],  # 已选题目列表
+                'current_major_point': major_point,
+                'current_minor_point': minor_point,
+                'questions': [first_question],
                 'answer_records': [],
                 'last_result': None,
-                'used_question_ids': used_question_ids,
-                'all_available_questions': all_available_questions,
-                'current_mastery': current_mastery,
-                'initial_mastery': current_mastery
+                'used_question_ids': used_ids,
+                'profile': profile
             }
             
-            logger.info(f"✅ 测评开始，第1题: {first_question.get('问题', '')[:50]}... (难度: {first_question.get('难度')})")
+            logger.info(f"✅ 测评开始 - 第1题: {major_point}/{minor_point}")
             return session
             
         except Exception as e:
@@ -245,79 +331,77 @@ class EducationSystemCore:
     def submit_answer(self, session: Dict[str, Any], 
                      student_answer: str) -> Dict[str, Any]:
         """
-        提交答案（优化版，自动调整后续题目）
+        提交答案（使用盘古7B评估）
         
-        Args:
-            session: 会话状态
-            student_answer: 学生答案
-            
-        Returns:
-            更新后的会话状态
+        关键：这里使用盘古7B进行答案评估
         """
         try:
             question = session['current_question']
+            major_point = session['current_major_point']
+            minor_point = session['current_minor_point']
             
-            logger.info(f"✍️  评估答案（题目 {session['current_index']}/{session['total_questions']}）...")
+            logger.info(f"✍️  评估答案 (题目 {session['current_index']}/{session['total_questions']})")
+            logger.info(f"🤖 使用盘古7B进行严格答案评估...")
             
-            # 检查答案
+            # 使用盘古7B检查答案（核心功能）
             is_correct, reason = self.evaluator.check_answer(
                 question,
                 student_answer,
                 self.config.PROMPTS['answer_check']
             )
             
-            logger.info(f"✅ 答案评估完成: {'✓ 正确' if is_correct else '✗ 错误'}")
+            logger.info(f"📊 盘古7B判定: {'✅ 正确' if is_correct else '❌ 错误'}")
             
-            # ⭐ 关键：记录答题到BKT算法，获取更新后的掌握度
+            # 记录到BKT（更新掌握度）
             bkt_result = self.bkt_algorithm.record_answer(
                 session['student_id'],
-                session['knowledge_point'],
+                major_point,
+                minor_point,
                 question,
                 is_correct
             )
             
-            new_mastery = bkt_result['current_mastery']
-            mastery_change = bkt_result['mastery_change']
-            recommended_difficulty = bkt_result['recommended_difficulty']
-            
-            logger.info(f"📊 BKT更新: 掌握度 {bkt_result['previous_mastery']:.3f} → {new_mastery:.3f} "
-                       f"(变化: {mastery_change:+.3f}), 推荐难度: {recommended_difficulty}")
-            
-            # 更新会话中的掌握度
-            session['current_mastery'] = new_mastery
-            
             # 记录答题
             record = {
                 'question': question,
+                'major_point': major_point,
+                'minor_point': minor_point,
                 'student_answer': student_answer,
                 'is_correct': is_correct,
                 'check_reason': reason,
                 'mastery_before': bkt_result['previous_mastery'],
-                'mastery_after': new_mastery,
-                'mastery_change': mastery_change
+                'mastery_after': bkt_result['current_mastery'],
+                'mastery_change': bkt_result['mastery_change']
             }
             
             session['answer_records'].append(record)
             session['last_result'] = record
             
-            # ⭐⭐ 核心自适应逻辑：如果还有后续题目，根据新的掌握度选择下一题
+            # 如果还有后续题目，智能选择下一题
             if session['current_index'] < session['total_questions']:
-                logger.info(f"🔄 根据新掌握度 {new_mastery:.3f} 动态选择下一题...")
+                logger.info(f"🤔 基于BKT算法智能选择下一题...")
                 
-                next_question = self._select_adaptive_question(
+                # 选择下一个目标知识点
+                next_major, next_minor = self._select_target_knowledge_point(
+                    session['student_id']
+                )
+                
+                # 选择题目（基于更新后的掌握度）
+                next_question = self._select_question_by_mastery(
                     session['student_id'],
-                    session['knowledge_point'],
-                    new_mastery,
-                    session['all_available_questions'],
+                    next_major,
+                    next_minor,
                     session['used_question_ids']
                 )
                 
                 if next_question:
                     session['questions'].append(next_question)
                     session['used_question_ids'].add(next_question.get('题号'))
-                    logger.info(f"✅ 已准备下一题 (难度: {next_question.get('难度')})")
+                    session['current_major_point'] = next_major
+                    session['current_minor_point'] = next_minor
+                    logger.info(f"✅ 准备下一题: {next_major}/{next_minor}")
                 else:
-                    logger.warning(f"⚠️  无法选择下一题，提前结束测评")
+                    logger.warning("⚠️  无法选择下一题，提前结束")
                     session['total_questions'] = session['current_index']
             
             return session
@@ -326,197 +410,100 @@ class EducationSystemCore:
             logger.error(f"❌ 提交答案失败: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            session['last_result'] = {
-                'question': session['current_question'],
-                'student_answer': student_answer,
-                'is_correct': False,
-                'check_reason': f"处理失败: {str(e)}"
-            }
             return session
     
     def next_question(self, session: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        加载下一题
-        
-        Args:
-            session: 会话状态
-            
-        Returns:
-            更新后的会话状态
-        """
+        """加载下一题"""
         session['current_index'] += 1
         
         if session['current_index'] <= len(session['questions']):
             session['current_question'] = session['questions'][session['current_index'] - 1]
-            logger.info(f"📄 加载第 {session['current_index']} 题: {session['current_question'].get('问题', '')[:50]}...")
-        else:
-            logger.info(f"✅ 所有题目已完成")
+            logger.info(f"📄 加载第 {session['current_index']} 题")
         
         return session
     
     def generate_report(self, session: Dict[str, Any]) -> str:
         """
-        生成评估报告（深度个性化版本）
+        生成评估报告（使用盘古7B）
         
-        Args:
-            session: 会话状态
-            
-        Returns:
-            个性化评估报告文本
+        关键：这里使用盘古7B生成个性化报告
         """
         try:
-            logger.info("📝 生成深度个性化评估报告...")
+            logger.info("📝 正在使用盘古7B生成智能评估报告...")
+            logger.info("🤖 盘古7B将分析学习模式并生成个性化建议...")
             
-            # 使用新的综合报告生成方法
+            # 使用盘古7B生成个性化报告（核心功能）
             report = self.evaluator.generate_comprehensive_report(
                 session['student_id'],
-                session['knowledge_point'],
+                "综合评估",  # 不再限定单一知识点
                 session['answer_records']
             )
             
-            logger.info("✅ 深度个性化评估报告生成完成")
+            logger.info("✅ 盘古7B报告生成完成")
             return report
             
         except Exception as e:
             logger.error(f"❌ 生成报告失败: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
             return f"报告生成失败: {str(e)}"
     
-    def generate_student_profile(self, student_id: str) -> Dict[str, Any]:
-        """生成学生评估画像"""
-        try:
-            if not self.bkt_algorithm:
-                return {"error": "BKT算法未初始化"}
-            
-            profile = self.bkt_algorithm.generate_student_profile(student_id)
-            return profile
-            
-        except Exception as e:
-            logger.error(f"❌ 生成学生画像失败: {e}")
-            return {"error": str(e)}
-    
+    # 以下是辅助功能
     def import_questions(self, file_path: str) -> int:
         """导入题目"""
         return self.question_db.import_from_json(file_path)
-    
-    def add_question(self, question_data: Dict[str, Any]) -> bool:
-        """添加题目"""
-        return self.question_db.insert_question(question_data)
     
     def get_database_statistics(self) -> Dict[str, Any]:
         """获取数据库统计"""
         return self.question_db.get_statistics()
     
-    def search_questions(self, knowledge_point: Optional[str] = None,
-                        difficulty: Optional[str] = None) -> List[Dict[str, Any]]:
-        """搜索题目"""
-        return self.question_db.get_questions_filtered(
-            knowledge_point=knowledge_point,
-            difficulty=difficulty
-        )
-    
-    def generate_kg_visualization(self, layout: str = 'spring') -> str:
-        """生成知识图谱可视化"""
-        try:
-            questions = self.question_db.get_all_questions()
-            self.visualizer.build_graph_from_questions(questions)
-            fig = self.visualizer.create_plotly_figure(layout, "知识图谱")
-            return fig.to_html(include_plotlyjs='cdn', full_html=False)
-        except Exception as e:
-            logger.error(f"❌ 生成图谱可视化失败: {e}")
-            return f"<p>生成失败: {str(e)}</p>"
-    
-    def generate_kg_plotly(self, layout: str = 'spring'):
-        """生成知识图谱Plotly图表对象"""
-        try:
-            questions = self.question_db.get_all_questions()
-            self.visualizer.build_graph_from_questions(questions)
-            fig = self.visualizer.create_plotly_figure(layout, "知识图谱")
-            return fig
-        except Exception as e:
-            logger.error(f"❌ 生成Plotly图谱失败: {e}")
-            import plotly.graph_objects as go
-            fig = go.Figure()
-            fig.add_annotation(
-                text="知识图谱生成失败<br>请检查题库数据",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False,
-                font=dict(size=16)
-            )
-            return fig
-    
-    def export_kg_html(self) -> str:
-        """导出知识图谱HTML文件"""
-        try:
-            questions = self.question_db.get_all_questions()
-            self.visualizer.build_graph_from_questions(questions)
-            
-            output_path = str(self.config.KG_GRAPH_PATH)
-            self.visualizer.save_interactive_html(output_path)
-            
-            return output_path
-        except Exception as e:
-            logger.error(f"❌ 导出图谱失败: {e}")
-            raise
-    
     def get_system_info(self) -> str:
         """获取系统信息"""
-        # 统计学生数据
         student_count = 0
         total_records = 0
         if self.bkt_algorithm and hasattr(self.bkt_algorithm, 'student_states'):
             student_count = len(self.bkt_algorithm.student_states)
-            total_records = sum(len(kps) for kps in self.bkt_algorithm.student_states.values())
+            total_records = sum(
+                sum(len(minor) for minor in major.values())
+                for major in self.bkt_algorithm.student_states.values()
+            )
         
         info = f"""
 系统版本: {self.config.SYSTEM_INFO['version']}
-作者: {self.config.SYSTEM_INFO['author']}
 描述: {self.config.SYSTEM_INFO['description']}
 模型: {self.config.SYSTEM_INFO['model']}
 设备: {self.config.SYSTEM_INFO['device']}
 
-模型状态:
-  - 嵌入模型: {'已加载' if self.embedding_model else '未加载'}
-  - 盘古7B模型: {'已加载' if (self.pangu_model and self.pangu_model.is_loaded) else '未加载'}
-  - NPU设备数: {len(self.pangu_model.devices) if self.pangu_model else 0}
+核心技术:
+  - 语言模型: 盘古7B (用于答案评估和报告生成)
+  - 知识图谱: LightRAG (用于题目检索和生成)
+  - 学习建模: BKT算法 (贝叶斯知识追踪)
+  - 自适应学习: 基于掌握度的动态难度调整
 
 数据统计:
   - 题库路径: {self.config.QUESTION_DB}
-  - 总题目数: {len(self.question_db.get_all_questions()) if self.question_db else 0}
+  - 总题目数: {len(self.question_db.get_all_questions())}
   - 学生数量: {student_count}
   - 学习记录数: {total_records}
 
-自适应功能:
-  - BKT算法: {'✅ 已启用' if self.bkt_algorithm else '❌ 未启用'}
-  - 状态持久化: {'✅ 已启用' if self.bkt_algorithm else '❌ 未启用'}
-  - 智能题目选择: ✅ 已启用
-  - 实时难度调整: ✅ 已启用
-
-配置信息:
-  - 工作目录: {self.config.WORKING_DIR}
-  - 数据目录: {self.config.DATA_DIR}
+智能功能:
+  - 细粒度知识点追踪: ✅ 已启用
+  - 薄弱点自动识别: ✅ 已启用
+  - 智能选题系统: ✅ 已启用 (BKT + RAG)
+  - 自适应难度调整: ✅ 已启用
+  - AI答案评估: ✅ 已启用 (盘古7B)
+  - AI报告生成: ✅ 已启用 (盘古7B)
+  - 知识图谱检索: ✅ 已启用 (LightRAG)
 """
         return info
     
     def reload_models(self):
         """重新加载模型"""
-        logger.info("🔄 重新加载模型...")
-        
-        if self.embedding_model:
-            self.embedding_model.load_model()
-        
         if self.pangu_model:
+            logger.info("🔄 重新加载盘古7B模型...")
             self.pangu_model.load_model()
-        
-        logger.info("✅ 模型重新加载完成")
     
     def clear_cache(self):
         """清除缓存"""
-        logger.info("🗑️  清除缓存...")
-        
         import torch
-        
         try:
             import torch_npu
             if torch.npu.is_available():
@@ -525,21 +512,11 @@ class EducationSystemCore:
                 logger.info("✅ NPU缓存已清除")
         except:
             pass
-        
-        logger.info("✅ 缓存清除完成")
 
 
 def create_system_core(config):
-    """
-    工厂函数:创建系统核心
-    
-    Args:
-        config: 配置模块
-        
-    Returns:
-        系统核心实例
-    """
-    core = EducationSystemCore(config)
+    """创建系统核心"""
+    core = SmartEducationSystem(config)
     core.initialize()
     return core
 
@@ -552,6 +529,5 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     
     system = create_system_core(config)
-    
-    print("✅ 系统核心创建成功（自适应增强版）")
+    print("✅ 智能系统创建成功")
     print(system.get_system_info())

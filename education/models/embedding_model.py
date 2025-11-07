@@ -133,18 +133,18 @@ class BGE_M3_Embedding:
         self.model = None
         self.tokenizer = None
         
-        logger.info(f"初始化BGE-M3嵌入模型: {model_path}")
+        logger.info(f"初始化BGE嵌入模型: {model_path}")
     
     def load_model(self):
         try:
-            logger.info("正在加载BGE-M3模型...")
+            logger.info("正在加载BGE模型...")
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
             self.model = AutoModel.from_pretrained(self.model_path)
             self.model.to(self.device)
             self.model.eval()
-            logger.info(f"BGE-M3模型加载成功,设备: {self.device}")
+            logger.info(f"BGE模型加载成功,设备: {self.device}")
         except Exception as e:
-            logger.error(f"BGE-M3模型加载失败: {e}")
+            logger.error(f"BGE模型加载失败: {e}")
             raise
     
     def encode(self, texts: Union[str, List[str]], 
@@ -224,7 +224,7 @@ class MockEmbedding:
 def create_embedding_model(model_path: str, config: dict):
     """
     创建嵌入模型
-    优先尝试使用盘古7B的嵌入功能，失败则使用BGE-M3
+    优先尝试使用盘古7B的嵌入功能，失败则使用BGE
     """
     import os
     
@@ -237,7 +237,7 @@ def create_embedding_model(model_path: str, config: dict):
             logger.info("尝试使用盘古7B的嵌入功能...")
             return PanGuEmbedding(pangu_path, config)
         except Exception as e:
-            logger.warning(f"盘古7B嵌入初始化失败: {e}，尝试使用BGE-M3")
+            logger.warning(f"盘古7B嵌入初始化失败: {e}，尝试使用BGE")
     
     # 使用BGE-M3
     if os.path.exists(model_path):

@@ -1,195 +1,363 @@
 """
-LightRAG引擎模块
-负责知识图谱的构建、查询和管理
+本地RAG引擎 - 基于向量检索和知识图谱
+不依赖OpenAI API，使用本地嵌入模型和盘古7B
 """
 
-import asyncio
-import json
 import logging
-from typing import List, Dict, Any, Optional
+import numpy as np
+import json
+from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
+import re
 
 logger = logging.getLogger(__name__)
 
-try:
-    from lightrag import LightRAG, QueryParam
-    from lightrag.llm import openai_complete_if_cache, openai_embed
-    LIGHTRAG_AVAILABLE = True
-except ImportError:
-    logger.warning("LightRAG未安装,将使用模拟模式")
-    LIGHTRAG_AVAILABLE = False
 
-
-class RAGEngine:
-    def __init__(self, working_dir: str, embedding_func, llm_func=None):
-
-        self.working_dir = Path(working_dir)  # 转换为Path对象便于操作
-        self.working_dir.mkdir(exist_ok=True)  # 创建目录
-        
-        self.embedding_func = embedding_func  # 存储嵌入函数
-        self.llm_func = llm_func  # 存储LLM函数
-        self.rag = None  # LightRAG实例，初始为None
-        
-        logger.info(f"初始化RAG引擎,工作目录: {working_dir}")
+class LocalRAGEngine:
+    """本地RAG引擎 - 向量检索 + 知识图谱"""
     
-    async def initialize(self):
-        if not LIGHTRAG_AVAILABLE:
-            logger.warning("LightRAG不可用,使用模拟模式")
-            return
+    def __init__(self, embedding_model, llm_model):
+        """
+        初始化RAG引擎
         
-        try:
-            async def simple_llm_func(prompt, **kwargs):
-                return f"已处理: {prompt[:50]}..."
-            
-            self.rag = LightRAG(   # 创建LightRAG实例
-                working_dir=str(self.working_dir),
-                embedding_func=self.embedding_func,  # 嵌入函数
-                llm_model_func=simple_llm_func   # 模拟LLM函数
-            )
-            await self.rag.initialize_storages()  # 初始化存储系统
-            logger.info("RAG引擎初始化成功")
-            
-        except Exception as e:
-            logger.error(f"RAG引擎初始化失败: {e}")
-            raise
-    
-    async def insert_documents(self, documents: List[str]):   # 插入文档到RAG系统
-        if self.rag is None:
-            await self.initialize()
+        Args:
+            embedding_model: BGE嵌入模型
+            llm_model: 盘古7B模型
+        """
+        self.embedding_model = embedding_model
+        self.llm_model = llm_model
         
-        if not LIGHTRAG_AVAILABLE:
-            logger.warning("LightRAG不可用,跳过文档插入")
-            return   # 模拟模式下不执行插入
+        # 题目索引
+        self.question_texts = []  # 题目文本列表
+        self.question_embeddings = None  # 题目嵌入矩阵
+        self.question_metadata = []  # 题目元数据
         
-        try:
-            logger.info(f"正在插入 {len(documents)} 个文档...")
-            for doc in documents:   # 遍历所有文档
-                await self.rag.insert(doc)   # 异步插入每个文档
-            logger.info("文档插入完成")
-        except Exception as e:
-            logger.error(f"文档插入失败: {e}")
-            raise
+        logger.info("✅ 本地RAG引擎初始化完成")
     
-    async def query(self, question: str, mode: str = "hybrid") -> str:   # 查询RAG系统
-        if self.rag is None:
-            await self.initialize()
+    def build_question_index(self, questions: List[Dict[str, Any]]):
+        """
+        构建题目索引
         
-        if not LIGHTRAG_AVAILABLE:
-            logger.warning("LightRAG不可用,返回模拟结果")
-            return f"模拟查询结果: {question}"
+        Args:
+            questions: 题目列表
+        """
+        logger.info(f"🔄 正在为 {len(questions)} 道题目构建向量索引...")
         
-        try:
-            result = await self.rag.query(
-                question,   # 查询问题
-                param=QueryParam(mode=mode)  # 查询参数
-            )
-            return result
-        except Exception as e:
-            logger.error(f"查询失败: {e}")
-            return f"查询失败: {str(e)}"
-    
-    def get_graph_data(self) -> Optional[Dict[str, Any]]:  # 获取知识图谱数据
-        if not LIGHTRAG_AVAILABLE or self.rag is None:
-            return None
+        self.question_texts = []
+        self.question_metadata = []
         
-        try:
-            graph_file = self.working_dir / "graph_chunk_entity_relation.graphml"
-            if graph_file.exists():
-                logger.info("图谱数据文件存在")
-                return {"nodes": [], "edges": []}
-            return None
-        except Exception as e:
-            logger.error(f"获取图谱数据失败: {e}")
-            return None
-    
-    async def finalize(self):  # 关闭RAG引擎，释放资源
-        if self.rag is not None and LIGHTRAG_AVAILABLE:
-            try:
-                await self.rag.finalize_storages()
-                logger.info("RAG引擎已关闭")
-            except Exception as e:
-                logger.error(f"关闭RAG引擎失败: {e}")
-
-
-class QuestionRAGManager:
-    
-    def __init__(self, rag_engine: RAGEngine):
-        self.rag_engine = rag_engine
-        logger.info("初始化题库知识图谱管理器")
-    
-    async def build_kg_from_questions(self, questions: List[Dict[str, Any]]):   # 从题目列表构建知识图谱 每个题目成为一个独立的文档
-        documents = []
         for q in questions:
-            # 构建文档文本
-            doc_text = f"""
-题目 {q.get('题号', 'N/A')}:
+            # 构建题目的文本表示（用于检索）
+            text = self._format_question_for_indexing(q)
+            self.question_texts.append(text)
+            
+            # 保存元数据
+            self.question_metadata.append({
+                'question': q,
+                'major_point': q.get('知识点大类', ''),
+                'minor_point': q.get('知识点小类', ''),
+                'difficulty': q.get('难度', 0.5),
+                'id': q.get('题号', len(self.question_metadata))
+            })
+        
+        # 批量计算嵌入
+        logger.info("🔄 正在计算题目嵌入...")
+        self.question_embeddings = self.embedding_model.encode(
+            self.question_texts,
+            normalize=True
+        )
+        
+        logger.info(f"✅ 题目索引构建完成: {len(self.question_texts)} 道题, "
+                   f"嵌入维度 {self.question_embeddings.shape[1]}")
+    
+    def _format_question_for_indexing(self, question: Dict[str, Any]) -> str:
+        """格式化题目用于索引"""
+        major = question.get('知识点大类', '')
+        minor = question.get('知识点小类', '')
+        problem = question.get('问题', '')
+        answer = question.get('答案', '')
+        explanation = question.get('解析', '')
+        
+        # 组合关键信息
+        text = f"知识点：{major} {minor}\n问题：{problem}\n答案：{answer}\n解析：{explanation}"
+        return text
+    
+    def search_questions(self, query: str, 
+                        major_point: Optional[str] = None,
+                        minor_point: Optional[str] = None,
+                        difficulty_range: Optional[Tuple[float, float]] = None,
+                        top_k: int = 5) -> List[Dict[str, Any]]:
+        """
+        检索相关题目
+        
+        Args:
+            query: 查询文本（如："初等代数 二次方程 中等难度"）
+            major_point: 知识点大类过滤
+            minor_point: 知识点小类过滤
+            difficulty_range: 难度范围 (min, max)
+            top_k: 返回前k个结果
+            
+        Returns:
+            检索到的题目列表，每个包含 {'question': {...}, 'score': float}
+        """
+        if self.question_embeddings is None:
+            logger.error("❌ 题目索引未构建")
+            return []
+        
+        # 计算查询嵌入
+        query_embedding = self.embedding_model.encode([query], normalize=True)[0]
+        
+        # 计算相似度
+        similarities = np.dot(self.question_embeddings, query_embedding)
+        
+        # 获取候选题目
+        candidates = []
+        for idx, score in enumerate(similarities):
+            metadata = self.question_metadata[idx]
+            
+            # 应用过滤条件
+            if major_point and metadata['major_point'] != major_point:
+                continue
+            if minor_point and metadata['minor_point'] != minor_point:
+                continue
+            if difficulty_range:
+                diff = metadata['difficulty']
+                if not (difficulty_range[0] <= diff < difficulty_range[1]):
+                    continue
+            
+            candidates.append({
+                'question': metadata['question'],
+                'score': float(score),
+                'metadata': metadata
+            })
+        
+        # 按相似度排序
+        candidates.sort(key=lambda x: x['score'], reverse=True)
+        
+        # 返回top_k
+        results = candidates[:top_k]
+        
+        logger.info(f"🔍 检索到 {len(results)} 道相关题目 (query: '{query[:50]}...')")
+        return results
+    
+    def extract_entities_and_relations(self, text_context: str) -> Dict[str, Any]:
+        """
+        使用盘古7B从文本中提取实体和关系
+        
+        Args:
+            text_context: 上下文文本
+            
+        Returns:
+            {'entities': [...], 'relations': [...]}
+        """
+        # 优化提示词，要求更简洁的输出
+        prompt = f"""分析以下数学题目，提取关键的知识点实体。
+
+题目内容：
+{text_context[:1000]}
+
+要求：
+1. 提取3-5个核心数学知识点
+2. 每个知识点用一个词或短语表示
+3. 严格按照以下格式输出，必须是有效的JSON：
+
+{{
+  "entities": [
+    {{"name": "一元二次方程", "type": "知识点"}},
+    {{"name": "因式分解", "type": "方法"}}
+  ],
+  "relations": [
+    {{"source": "一元二次方程", "target": "因式分解", "relation": "可以使用"}}
+  ]
+}}
+
+只输出JSON，不要有任何解释文字。
+"""
+        
+        try:
+            # 确保盘古7B已加载
+            if not self.llm_model.is_loaded:
+                logger.info("🔄 加载盘古7B模型...")
+                self.llm_model.load_model()
+            
+            # 生成（降低温度以获得更稳定的JSON）
+            response = self.llm_model.generate(prompt, temperature=0.1, max_length=1024)
+            
+            # 解析JSON
+            kg_data = self._parse_kg_response(response)
+            
+            logger.info(f"✅ 提取到 {len(kg_data.get('entities', []))} 个实体, "
+                       f"{len(kg_data.get('relations', []))} 个关系")
+            
+            return kg_data
+            
+        except Exception as e:
+            logger.error(f"❌ 实体关系提取失败: {e}")
+            return {'entities': [], 'relations': []}
+    
+    def _parse_kg_response(self, response: str) -> Dict[str, Any]:
+        """解析知识图谱响应"""
+        try:
+            # 查找JSON部分
+            start_idx = response.find('{')
+            end_idx = response.rfind('}') + 1
+            
+            if start_idx == -1 or end_idx == 0:
+                return {'entities': [], 'relations': []}
+            
+            json_str = response[start_idx:end_idx]
+            kg_data = json.loads(json_str)
+            
+            return kg_data
+        except Exception as e:
+            logger.warning(f"⚠️ JSON解析失败: {e}")
+            
+            # 尝试正则提取
+            entities = []
+            relations = []
+            
+            # 提取实体
+            entity_pattern = r'实体[:：]\s*([^\n]+)'
+            for match in re.finditer(entity_pattern, response):
+                entities.append({'name': match.group(1).strip(), 'type': '概念'})
+            
+            # 提取关系
+            relation_pattern = r'关系[:：]\s*([^\n]+)'
+            for match in re.finditer(relation_pattern, response):
+                relations.append({'source': '', 'target': '', 'relation': match.group(1).strip()})
+            
+            return {'entities': entities, 'relations': relations}
+    
+    def build_knowledge_subgraph(self, 
+                                student_mastery: float,
+                                major_point: str,
+                                minor_point: str,
+                                top_k: int = 5) -> Dict[str, Any]:
+        """
+        构建知识子图
+        
+        Args:
+            student_mastery: 学生掌握度
+            major_point: 知识点大类
+            minor_point: 知识点小类
+            top_k: 检索题目数量
+            
+        Returns:
+            知识子图数据
+        """
+        logger.info(f"🔄 构建知识子图: {major_point}/{minor_point}, 掌握度: {student_mastery:.3f}")
+        
+        # 1. 构建查询
+        if student_mastery < 0.3:
+            difficulty_desc = "简单 基础"
+        elif student_mastery < 0.7:
+            difficulty_desc = "中等"
+        else:
+            difficulty_desc = "困难 提高"
+        
+        query = f"{major_point} {minor_point} {difficulty_desc}"
+        
+        # 2. 检索相关题目
+        retrieved_questions = self.search_questions(
+            query=query,
+            major_point=major_point,
+            minor_point=minor_point,
+            top_k=top_k
+        )
+        
+        if not retrieved_questions:
+            logger.warning("⚠️ 未检索到相关题目")
+            return {
+                'retrieved_questions': [],
+                'entities': [],
+                'relations': [],
+                'context': ''
+            }
+        
+        # 3. 构建上下文
+        context_texts = []
+        for item in retrieved_questions:
+            q = item['question']
+            text = f"""题目{q.get('题号', '')}:
+知识点: {q.get('知识点大类', '')} / {q.get('知识点小类', '')}
+难度: {q.get('难度', 0.5)}
 问题: {q.get('问题', '')}
 答案: {q.get('答案', '')}
 解析: {q.get('解析', '')}
-难度: {q.get('难度', '')}
-知识点: {q.get('知识点', '')}
 """
-            documents.append(doc_text.strip())
+            context_texts.append(text)
         
-        # 批量插入到RAG系统
-        await self.rag_engine.insert_documents(documents)
-        logger.info(f"已构建 {len(documents)} 道题目的知识图谱")
-    
-    async def find_similar_questions(self, knowledge_point: str,   # 查找相似题目
-                                     difficulty: str = None,
-                                     count: int = 5) -> List[Dict[str, Any]]:
-        query_text = f"找出关于{knowledge_point}"    # 构建查询文本
-        if difficulty:
-            query_text += f"难度为{difficulty}"
-        query_text += "的题目"
+        full_context = "\n\n".join(context_texts)
         
-        result = await self.rag_engine.query(query_text, mode="hybrid")
-
-        logger.info(f"查询知识点'{knowledge_point}'的相似题目")
-        return []
-
-
-def create_rag_engine(config: Dict[str, Any], embedding_func) -> RAGEngine:
-    working_dir = config.get("working_dir", "./rag_storage")
-    return RAGEngine(working_dir, embedding_func)
-
-
-async def test_rag_engine():
-    from models.embedding_model import create_embedding_model
-    from config import BGE_M3_MODEL_PATH, EMBEDDING_MODEL_CONFIG, LIGHTRAG_CONFIG
+        # 4. 提取实体和关系
+        kg_data = self.extract_entities_and_relations(full_context)
+        
+        # 5. 组合结果
+        subgraph = {
+            'retrieved_questions': retrieved_questions,
+            'entities': kg_data.get('entities', []),
+            'relations': kg_data.get('relations', []),
+            'context': full_context,
+            'student_mastery': student_mastery,
+            'target_knowledge': f"{major_point}/{minor_point}"
+        }
+        
+        logger.info(f"✅ 知识子图构建完成: {len(retrieved_questions)} 道题, "
+                   f"{len(subgraph['entities'])} 个实体")
+        
+        return subgraph
     
-    # 1. 创建嵌入模型
-    embedding_model = create_embedding_model(BGE_M3_MODEL_PATH, EMBEDDING_MODEL_CONFIG)
-    
-    # 创建嵌入函数
-    def embedding_func(texts):
-        # 将文本列表转换为向量列表
-        return embedding_model.encode(texts).tolist()
-    
-    # 创建RAG引擎
-    rag_engine = create_rag_engine(LIGHTRAG_CONFIG, embedding_func)
-    
-    # 初始化
-    await rag_engine.initialize()
-    
-    # 插入测试文档
-    test_docs = [
-        "题目1: 求解方程 x^2 - 5x + 6 = 0. 答案: x = 2 或 x = 3",
-        "题目2: 计算积分 ∫x^2 dx. 答案: x^3/3 + C"
-    ]
-    await rag_engine.insert_documents(test_docs)
-    # 查询
-    result = await rag_engine.query("如何求解二次方程?")
-    print(f"查询结果: {result}")
+    def get_statistics(self) -> Dict[str, Any]:
+        """获取索引统计信息"""
+        return {
+            'total_questions': len(self.question_texts),
+            'embedding_dim': self.question_embeddings.shape[1] if self.question_embeddings is not None else 0,
+            'indexed': self.question_embeddings is not None
+        }
 
-    await rag_engine.finalize()
+
+def create_rag_engine(embedding_model, llm_model) -> LocalRAGEngine:
+    """创建RAG引擎"""
+    return LocalRAGEngine(embedding_model, llm_model)
 
 
 if __name__ == "__main__":
+    # 测试代码
     import sys
     sys.path.append("..")
+    from config import BGE_M3_MODEL_PATH, PANGU_MODEL_PATH, EMBEDDING_MODEL_CONFIG, PANGU_MODEL_CONFIG
+    from models.embedding_model import create_embedding_model
+    from models.llm_models import create_llm_model
     
     logging.basicConfig(level=logging.INFO)
     
-    # 运行测试
-    asyncio.run(test_rag_engine())
+    # 创建模型
+    embedding_model = create_embedding_model(BGE_M3_MODEL_PATH, EMBEDDING_MODEL_CONFIG)
+    llm_model = create_llm_model('pangu', PANGU_MODEL_PATH, PANGU_MODEL_CONFIG)
+    
+    # 创建RAG引擎
+    rag = create_rag_engine(embedding_model, llm_model)
+    
+    # 测试题目
+    test_questions = [
+        {
+            '题号': 1,
+            '问题': 'x^2 - 5x + 6 = 0',
+            '答案': 'x = 2 或 x = 3',
+            '难度': 0.3,
+            '知识点大类': '代数',
+            '知识点小类': '一元二次方程',
+            '解析': '因式分解得 (x-2)(x-3)=0'
+        }
+    ]
+    
+    # 构建索引
+    rag.build_question_index(test_questions)
+    
+    # 测试检索
+    results = rag.search_questions("二次方程", major_point="代数", top_k=3)
+    print(f"检索结果: {len(results)} 道题")
+    
+    # 测试知识子图
+    subgraph = rag.build_knowledge_subgraph(0.5, "代数", "一元二次方程")
+    print(f"知识子图: {len(subgraph['entities'])} 个实体")

@@ -151,7 +151,7 @@
           "p_forget": 0.05
         },
         "created_at": "2025-11-04T17:06:34.311914",
-        "updated_at": "2025-11-05T10:09:55.577696"
+        "updated_at": "2025-11-07T15:42:01.016834"
       },
       "二次不等式": {
         "student_id": "student_001",
@@ -208,13 +208,13 @@
           "p_forget": 0.05
         },
         "created_at": "2025-11-05T09:33:26.683220",
-        "updated_at": "2025-11-05T10:09:55.577727"
+        "updated_at": "2025-11-07T15:42:01.016885"
       },
       "高次方程": {
         "student_id": "student_001",
         "knowledge_point_major": "代数",
         "knowledge_point_minor": "高次方程",
-        "mastery_prob": 0.032758620689655175,
+        "mastery_prob": 0.2283980582524272,
         "answer_history": [
           {
             "question": {
@@ -233,10 +233,29 @@
             "difficulty": 0.3,
             "mastery_before": 0.2,
             "mastery_after": 0.032758620689655175
+          },
+          {
+            "question": {
+              "题号": 17,
+              "问题": "求方程 x^4 −10x^2 +9 =0 的实数解。",
+              "答案": "x = ±1, ±3。",
+              "解析": "令 t = x^2 ⇒ t^2 −10t +9 =0 ⇒ t =1 或 t =9。于是 x^2 =1 ⇒ x = ±1；x^2 =9 ⇒ x = ±3。",
+              "难度": 0.3,
+              "知识点大类": "代数",
+              "知识点小类": "高次方程",
+              "knowledge_point_major": "代数",
+              "knowledge_point_minor": "高次方程"
+            },
+            "is_correct": true,
+            "timestamp": "2025-11-07T15:43:57.937519",
+            "difficulty": 0.3,
+            "mastery_before": 0.032758620689655175,
+            "mastery_after": 0.2283980582524272
           }
         ],
         "recent_performance": [
-          false
+          false,
+          true
         ],
         "params": {
           "p_init": 0.2,
@@ -246,13 +265,13 @@
           "p_forget": 0.05
         },
         "created_at": "2025-11-05T10:10:19.883027",
-        "updated_at": "2025-11-05T10:10:35.311368"
+        "updated_at": "2025-11-07T15:43:57.937577"
       },
       "对数方程": {
         "student_id": "student_001",
         "knowledge_point_major": "代数",
         "knowledge_point_minor": "对数方程",
-        "mastery_prob": 0.032758620689655175,
+        "mastery_prob": 0.01,
         "answer_history": [
           {
             "question": {
@@ -271,9 +290,28 @@
             "difficulty": 0.5,
             "mastery_before": 0.2,
             "mastery_after": 0.032758620689655175
+          },
+          {
+            "question": {
+              "题号": 22,
+              "问题": "解 log2 (x - 1) + log2 (x - 3) = 3。",
+              "答案": "x = 5。",
+              "解析": "合并对数：log2 [(x - 1)(x - 3)] = 3。(x - 1)(x - 3) = 8 => x^2 - 4x - 5 = 0。解得 x = 5 或 x = -1。由于 x > 3，故解为 x = 5。",
+              "难度": 0.5,
+              "知识点大类": "代数",
+              "知识点小类": "对数方程",
+              "knowledge_point_major": "代数",
+              "knowledge_point_minor": "对数方程"
+            },
+            "is_correct": false,
+            "timestamp": "2025-11-07T15:45:17.772026",
+            "difficulty": 0.5,
+            "mastery_before": 0.032758620689655175,
+            "mastery_after": 0.01
           }
         ],
         "recent_performance": [
+          false,
           false
         ],
         "params": {
@@ -284,7 +322,7 @@
           "p_forget": 0.05
         },
         "created_at": "2025-11-05T10:10:35.314103",
-        "updated_at": "2025-11-05T10:11:03.662793"
+        "updated_at": "2025-11-07T15:45:17.772064"
       }
     },
     "分析": {
@@ -329,9 +367,47 @@
             "difficulty": 0.45,
             "mastery_before": 0.054807692307692314,
             "mastery_after": 0.01
+          },
+          {
+            "question": {
+              "题号": 5,
+              "问题": "设函数 g(x) = ln x − (x − 1)/x，定义域 x>0。判断 g(x) 的单调性。",
+              "答案": "g(x) 在 (0,1) 上单调减少，在 (1, +∞) 上单调增加。",
+              "解析": "g′(x) = 1/x − [ (x*1 − (x−1)*1 ) / x^2 ] = 1/x − 1/x^2 = (x − 1)/x^2。当 x>1 时 x−1>0 ⇒ g′>0；当 0<x<1 时 x−1<0 ⇒ g′<0。",
+              "难度": 0.45,
+              "知识点大类": "分析",
+              "知识点小类": "函数单调性",
+              "knowledge_point_major": "分析",
+              "knowledge_point_minor": "函数单调性"
+            },
+            "is_correct": false,
+            "timestamp": "2025-11-07T14:43:16.130537",
+            "difficulty": 0.45,
+            "mastery_before": 0.01,
+            "mastery_after": 0.01
+          },
+          {
+            "question": {
+              "题号": 5,
+              "问题": "设函数 g(x) = ln x − (x − 1)/x，定义域 x>0。判断 g(x) 的单调性。",
+              "答案": "g(x) 在 (0,1) 上单调减少，在 (1, +∞) 上单调增加。",
+              "解析": "g′(x) = 1/x − [ (x*1 − (x−1)*1 ) / x^2 ] = 1/x − 1/x^2 = (x − 1)/x^2。当 x>1 时 x−1>0 ⇒ g′>0；当 0<x<1 时 x−1<0 ⇒ g′<0。",
+              "难度": 0.45,
+              "知识点大类": "分析",
+              "知识点小类": "函数单调性",
+              "knowledge_point_major": "分析",
+              "knowledge_point_minor": "函数单调性"
+            },
+            "is_correct": false,
+            "timestamp": "2025-11-07T15:43:16.456251",
+            "difficulty": 0.45,
+            "mastery_before": 0.01,
+            "mastery_after": 0.01
           }
         ],
         "recent_performance": [
+          false,
+          false,
           false,
           false
         ],
@@ -343,7 +419,45 @@
           "p_forget": 0.05
         },
         "created_at": "2025-11-04T17:17:11.297159",
-        "updated_at": "2025-11-05T10:09:55.577739"
+        "updated_at": "2025-11-07T15:43:16.456346"
+      },
+      "基本导数": {
+        "student_id": "student_001",
+        "knowledge_point_major": "分析",
+        "knowledge_point_minor": "基本导数",
+        "mastery_prob": 0.5142857142857143,
+        "answer_history": [
+          {
+            "question": {
+              "题号": 44,
+              "问题": "y = ln (x^2 +1)，求 y'。",
+              "答案": "y' = 2x/(x² + 1)。",
+              "解析": "根据复合函数求导法则，设 u=x² +1，则 y=lnu。导数 y' = y'_u * u'_x = (1/u) * 2x = 2x/(x² + 1)。",
+              "难度": 0.35,
+              "知识点大类": "分析",
+              "知识点小类": "基本导数",
+              "knowledge_point_major": "分析",
+              "knowledge_point_minor": "基本导数"
+            },
+            "is_correct": true,
+            "timestamp": "2025-11-07T15:46:00.978236",
+            "difficulty": 0.35,
+            "mastery_before": 0.2,
+            "mastery_after": 0.5142857142857143
+          }
+        ],
+        "recent_performance": [
+          true
+        ],
+        "params": {
+          "p_init": 0.2,
+          "p_learn": 0.15,
+          "p_guess": 0.3,
+          "p_slip": 0.1,
+          "p_forget": 0.05
+        },
+        "created_at": "2025-11-07T15:45:17.775737",
+        "updated_at": "2025-11-07T15:46:00.978275"
       }
     },
     "几何": {
@@ -351,7 +465,7 @@
         "student_id": "student_001",
         "knowledge_point_major": "几何",
         "knowledge_point_minor": "立体几何",
-        "mastery_prob": 0.054807692307692314,
+        "mastery_prob": 0.01,
         "answer_history": [
           {
             "question": {
@@ -370,9 +484,28 @@
             "difficulty": 0.45,
             "mastery_before": 0.3,
             "mastery_after": 0.054807692307692314
+          },
+          {
+            "question": {
+              "题号": 13,
+              "问题": "已知球心 O，球面上的点 A，OA = R。在球外一点 P，OP = d (d > R)。从 P 向球切两条切线 PA 和 PB（切点均在球面上）。求切线长 PA。",
+              "答案": "PA = sqrt(d^2 − R^2)。",
+              "解析": "切线定理：PA^2 = PO^2 − R^2 = d^2 − R^2。",
+              "难度": 0.45,
+              "知识点大类": "几何",
+              "知识点小类": "立体几何",
+              "knowledge_point_major": "几何",
+              "knowledge_point_minor": "立体几何"
+            },
+            "is_correct": false,
+            "timestamp": "2025-11-07T15:50:54.967554",
+            "difficulty": 0.45,
+            "mastery_before": 0.054807692307692314,
+            "mastery_after": 0.01
           }
         ],
         "recent_performance": [
+          false,
           false
         ],
         "params": {
@@ -383,7 +516,276 @@
           "p_forget": 0.05
         },
         "created_at": "2025-11-05T09:34:12.988041",
-        "updated_at": "2025-11-05T10:09:55.577749"
+        "updated_at": "2025-11-07T15:50:54.967591"
+      },
+      "平面直线": {
+        "student_id": "student_001",
+        "knowledge_point_major": "几何",
+        "knowledge_point_minor": "平面直线",
+        "mastery_prob": 0.7384615384615385,
+        "answer_history": [
+          {
+            "question": {
+              "题号": 16,
+              "问题": "在平面直角坐标系中，点 A(1,0)、B(0,1)。求直线 AB 关于直线 y = x 的对称直线的标准方程。",
+              "答案": "原直线 AB 的方程 y = −x +1。关于 y = x 对称后其方程为 x = −y +1。",
+              "解析": "原直线：连接 (1,0) 与 (0,1) 得斜率 −1，截距 +1。对称变换关于 y = x 等价于交换 x,y 坐标，于是 x = −y +1。",
+              "难度": 0.3,
+              "知识点大类": "几何",
+              "知识点小类": "平面直线",
+              "knowledge_point_major": "几何",
+              "knowledge_point_minor": "平面直线"
+            },
+            "is_correct": true,
+            "timestamp": "2025-11-06T14:19:53.587878",
+            "difficulty": 0.3,
+            "mastery_before": 0.2,
+            "mastery_after": 0.7384615384615385
+          }
+        ],
+        "recent_performance": [
+          true
+        ],
+        "params": {
+          "p_init": 0.2,
+          "p_learn": 0.15,
+          "p_guess": 0.1,
+          "p_slip": 0.1,
+          "p_forget": 0.05
+        },
+        "created_at": "2025-11-06T14:19:37.906849",
+        "updated_at": "2025-11-07T15:42:01.016942"
+      },
+      "空间直线与平面": {
+        "student_id": "student_001",
+        "knowledge_point_major": "几何",
+        "knowledge_point_minor": "空间直线与平面",
+        "mastery_prob": 0.01,
+        "answer_history": [
+          {
+            "question": {
+              "题号": 9,
+              "问题": "设直线 l 与平面 α 平行。已知平面 α 的方程 2x − y + z − 3 = 0，直线 l 过点 A(1,2,0)，方向向量为 (1,1,2)。判断 l 与 α 的关系，并求直线上一点到平面 α 的距离。",
+              "答案": "直线 l 与平面 α 相交（因为方向向量 (1,1,2) 与平面法向量 (2,−1,1) 的点积 = 3 ≠0，所以直线不是平行于平面，而是与其相交）。与平面相交则某点距离为 0。交点可算得为 P(2,3,2)。所以距离为 0。",
+              "解析": "直线 l: P(t) = (1+t,2+t,0+2t). 平面法向量 n = (2, −1, 1). 点 A 的到平面距离 = |2(1) − (2) + 0 −3| / sqrt(2^2 + (−1)^2 +1^2) = |2 −2 −3|/sqrt6 = 3/sqrt6 ≠0。说明 A 不在平面。方向向量 v·n = 1*2 + 1*(−1) + 2*1 =3 ≠0 ⇒直线不平行。于是直线与平面必有唯一交点。令点 P(t) 代入平面方程：2(1+t) − (2+t) + (2t) −3 =0 ⇒2+2t −2 −t +2t −3 =0 ⇒3t −3 =0 ⇒t=1 ⇒P(2,3,2)。所以直线上一点（此交点）到平面距离 0。",
+              "难度": 0.6,
+              "知识点大类": "几何",
+              "知识点小类": "空间直线与平面",
+              "knowledge_point_major": "几何",
+              "knowledge_point_minor": "空间直线与平面"
+            },
+            "is_correct": false,
+            "timestamp": "2025-11-07T14:41:19.927236",
+            "difficulty": 0.6,
+            "mastery_before": 0.2,
+            "mastery_after": 0.032758620689655175
+          },
+          {
+            "question": {
+              "题号": 9,
+              "问题": "设直线 l 与平面 α 平行。已知平面 α 的方程 2x − y + z − 3 = 0，直线 l 过点 A(1,2,0)，方向向量为 (1,1,2)。判断 l 与 α 的关系，并求直线上一点到平面 α 的距离。",
+              "答案": "直线 l 与平面 α 相交（因为方向向量 (1,1,2) 与平面法向量 (2,−1,1) 的点积 = 3 ≠0，所以直线不是平行于平面，而是与其相交）。与平面相交则某点距离为 0。交点可算得为 P(2,3,2)。所以距离为 0。",
+              "解析": "直线 l: P(t) = (1+t,2+t,0+2t). 平面法向量 n = (2, −1, 1). 点 A 的到平面距离 = |2(1) − (2) + 0 −3| / sqrt(2^2 + (−1)^2 +1^2) = |2 −2 −3|/sqrt6 = 3/sqrt6 ≠0。说明 A 不在平面。方向向量 v·n = 1*2 + 1*(−1) + 2*1 =3 ≠0 ⇒直线不平行。于是直线与平面必有唯一交点。令点 P(t) 代入平面方程：2(1+t) − (2+t) + (2t) −3 =0 ⇒2+2t −2 −t +2t −3 =0 ⇒3t −3 =0 ⇒t=1 ⇒P(2,3,2)。所以直线上一点（此交点）到平面距离 0。",
+              "难度": 0.6,
+              "知识点大类": "几何",
+              "知识点小类": "空间直线与平面",
+              "knowledge_point_major": "几何",
+              "knowledge_point_minor": "空间直线与平面"
+            },
+            "is_correct": false,
+            "timestamp": "2025-11-07T15:48:41.157251",
+            "difficulty": 0.6,
+            "mastery_before": 0.032758620689655175,
+            "mastery_after": 0.01
+          }
+        ],
+        "recent_performance": [
+          false,
+          false
+        ],
+        "params": {
+          "p_init": 0.2,
+          "p_learn": 0.15,
+          "p_guess": 0.3,
+          "p_slip": 0.1,
+          "p_forget": 0.05
+        },
+        "created_at": "2025-11-07T14:39:12.455371",
+        "updated_at": "2025-11-07T15:48:41.157287"
+      }
+    }
+  },
+  "test_student": {
+    "代数": {
+      "根式方程": {
+        "student_id": "test_student",
+        "knowledge_point_major": "代数",
+        "knowledge_point_minor": "根式方程",
+        "mastery_prob": 0.3,
+        "answer_history": [],
+        "recent_performance": [],
+        "params": {
+          "p_init": 0.3,
+          "p_learn": 0.2,
+          "p_guess": 0.3,
+          "p_slip": 0.1,
+          "p_forget": 0.05
+        },
+        "created_at": "2025-11-06T22:37:35.475919",
+        "updated_at": "2025-11-07T15:42:01.016961"
+      },
+      "一元二次方程": {
+        "student_id": "test_student",
+        "knowledge_point_major": "代数",
+        "knowledge_point_minor": "一元二次方程",
+        "mastery_prob": 0.99,
+        "answer_history": [
+          {
+            "question": {
+              "问题": "x^2 - 5x + 6 = 0",
+              "答案": "x = 2 或 x = 3",
+              "难度": 0.3
+            },
+            "is_correct": true,
+            "timestamp": "2025-11-07T11:14:51.315610",
+            "difficulty": 0.3,
+            "mastery_before": 0.3,
+            "mastery_after": 0.6500000000000001
+          },
+          {
+            "question": {
+              "问题": "x^2 - 5x + 6 = 0",
+              "答案": "x = 2 或 x = 3",
+              "难度": 0.3
+            },
+            "is_correct": true,
+            "timestamp": "2025-11-07T11:21:25.288967",
+            "difficulty": 0.3,
+            "mastery_before": 0.6500000000000001,
+            "mastery_after": 0.8782608695652174
+          },
+          {
+            "question": {
+              "问题": "x^2 - 5x + 6 = 0",
+              "答案": "x = 2 或 x = 3",
+              "难度": 0.3
+            },
+            "is_correct": true,
+            "timestamp": "2025-11-07T11:27:07.721174",
+            "difficulty": 0.3,
+            "mastery_before": 0.8782608695652174,
+            "mastery_after": 0.9646687697160884
+          },
+          {
+            "question": {
+              "问题": "x^2 - 5x + 6 = 0",
+              "答案": "x = 2 或 x = 3",
+              "难度": 0.3
+            },
+            "is_correct": true,
+            "timestamp": "2025-11-07T11:28:51.391626",
+            "difficulty": 0.3,
+            "mastery_before": 0.9646687697160884,
+            "mastery_after": 0.99
+          }
+        ],
+        "recent_performance": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "params": {
+          "p_init": 0.3,
+          "p_learn": 0.2,
+          "p_guess": 0.3,
+          "p_slip": 0.1,
+          "p_forget": 0.05
+        },
+        "created_at": "2025-11-07T11:14:51.313559",
+        "updated_at": "2025-11-07T15:42:01.016971"
+      }
+    }
+  },
+  "test_student2": {
+    "代数": {
+      "复数运算": {
+        "student_id": "test_student2",
+        "knowledge_point_major": "代数",
+        "knowledge_point_minor": "复数运算",
+        "mastery_prob": 0.6500000000000001,
+        "answer_history": [
+          {
+            "question": {
+              "题号": 25,
+              "问题": "z = (1+i)/(1-i)，求模与辐角。",
+              "答案": "模 |z| = 1；辐角 arg (z) = π/2。",
+              "解析": "先化简复数：z = (1+i)/(1-i) * (1+i)/(1+i) = (1 + 2i + i²)/(1 - i²) = (2i)/2 = i。复数 i 对应复平面上的点 (0,1)，模 |z| = sqrt (0² + 1²) = 1；辐角为该点与实轴正方向的夹角，即 π/2。",
+              "难度": 0.5,
+              "知识点大类": "代数",
+              "知识点小类": "复数运算",
+              "knowledge_point_major": "代数",
+              "knowledge_point_minor": "复数运算"
+            },
+            "is_correct": true,
+            "timestamp": "2025-11-06T22:38:01.911898",
+            "difficulty": 0.5,
+            "mastery_before": 0.3,
+            "mastery_after": 0.6500000000000001
+          }
+        ],
+        "recent_performance": [
+          true
+        ],
+        "params": {
+          "p_init": 0.3,
+          "p_learn": 0.2,
+          "p_guess": 0.3,
+          "p_slip": 0.1,
+          "p_forget": 0.05
+        },
+        "created_at": "2025-11-06T22:37:42.265045",
+        "updated_at": "2025-11-07T15:42:01.016980"
+      }
+    },
+    "几何": {
+      "立体几何": {
+        "student_id": "test_student2",
+        "knowledge_point_major": "几何",
+        "knowledge_point_minor": "立体几何",
+        "mastery_prob": 0.3,
+        "answer_history": [],
+        "recent_performance": [],
+        "params": {
+          "p_init": 0.3,
+          "p_learn": 0.2,
+          "p_guess": 0.3,
+          "p_slip": 0.1,
+          "p_forget": 0.05
+        },
+        "created_at": "2025-11-06T22:38:01.914942",
+        "updated_at": "2025-11-07T15:42:01.016989"
+      }
+    }
+  },
+  "test_student_001": {
+    "代数": {
+      "等差数列": {
+        "student_id": "test_student_001",
+        "knowledge_point_major": "代数",
+        "knowledge_point_minor": "等差数列",
+        "mastery_prob": 0.3,
+        "answer_history": [],
+        "recent_performance": [],
+        "params": {
+          "p_init": 0.3,
+          "p_learn": 0.2,
+          "p_guess": 0.3,
+          "p_slip": 0.1,
+          "p_forget": 0.05
+        },
+        "created_at": "2025-11-07T14:20:30.585784",
+        "updated_at": "2025-11-07T15:42:01.016998"
       }
     }
   }

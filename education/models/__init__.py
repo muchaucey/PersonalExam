@@ -1,16 +1,12 @@
-# models/__init__.py
 """
-模型模块初始化文件
+模型模块初始化
 """
 
 from .llm_models import create_llm_model, PanGuModel
-from .embedding_model import create_embedding_model, PanGuEmbedding, BGE_M3_Embedding, MockEmbedding
+from .embedding_model import create_embedding_model
 
 __all__ = [
     'create_llm_model',
-    'PanGuModel', 
+    'PanGuModel',
     'create_embedding_model',
-    'PanGuEmbedding',
-    'BGE_M3_Embedding', 
-    'MockEmbedding'
 ]

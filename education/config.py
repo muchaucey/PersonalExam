@@ -1,5 +1,6 @@
 """
-教育评估系统配置文件 - 智能个性化版本
+教育评估系统配置文件 - 本地RAG版本
+移除LightRAG依赖，使用本地向量检索
 """
 
 import os
@@ -8,26 +9,15 @@ from pathlib import Path
 # ==================== 项目路径配置 ====================
 PROJECT_ROOT = Path(__file__).parent
 DATA_DIR = PROJECT_ROOT / "data"
-WORKING_DIR = PROJECT_ROOT / "rag_storage"
-QUESTION_DB = DATA_DIR / "question_database_2.json"  # 使用新数据集
+QUESTION_DB = DATA_DIR / "question_database_2.json"
 KG_GRAPH_PATH = DATA_DIR / "knowledge_graph.html"
 
 # 确保目录存在
 DATA_DIR.mkdir(exist_ok=True)
-WORKING_DIR.mkdir(exist_ok=True)
 
 # ==================== 模型路径配置 ====================
 PANGU_MODEL_PATH = "/opt/pangu/openPangu-Embedded-7B-V1.1"  
-BGE_M3_MODEL_PATH = "/home/weitianyu/bgem3"  
-
-# ==================== LightRAG配置 ====================
-LIGHTRAG_CONFIG = {
-    "working_dir": str(WORKING_DIR),
-    "embedding_cache_config": {
-        "enabled": True,
-        "similarity_threshold": 0.95
-    }
-}
+BGE_M3_MODEL_PATH = "/home/weitianyu/bge-small-zh-v1.5"  
 
 # ==================== 盘古7B模型配置 ====================
 PANGU_MODEL_CONFIG = {
@@ -56,14 +46,13 @@ EVALUATION_MODEL_CONFIG.update({
     "top_p": 0.85,
 })
 
-# 嵌入模型配置
+# 嵌入模型配置（仅使用BGE）
 EMBEDDING_MODEL_CONFIG = {
     "model_path": BGE_M3_MODEL_PATH,
     "device": "cpu",
     "batch_size": 32,
     "max_length": 512,
-    "use_pangu_embedding": True,
-    "pangu_model_path": PANGU_MODEL_PATH,
+    "use_pangu_embedding": False,  # 不使用盘古嵌入
 }
 
 # ==================== 知识点配置（新结构） ====================
@@ -122,6 +111,9 @@ SMART_QUESTION_CONFIG = {
     
     # 知识点轮询
     "weak_point_rotation": True,   # 是否轮询薄弱知识点
+    
+    # RAG检索参数
+    "rag_top_k": 5,               # RAG检索返回的题目数量
 }
 
 # ==================== 评估配置 ====================
@@ -143,7 +135,7 @@ VISUALIZATION_CONFIG = {
 
 # ==================== UI配置 ====================
 UI_CONFIG = {
-    "title": "智能个性化教育评估系统 - AI驱动自适应学习",
+    "title": "智能个性化教育评估系统 - 本地RAG驱动",
     "theme": "default",
     "port": 7860,
     "share": False,
@@ -204,11 +196,12 @@ LOGGING_CONFIG = {
 
 # ==================== 系统信息 ====================
 SYSTEM_INFO = {
-    "version": "3.0.0",
+    "version": "3.1.0",
     "author": "AI Education Team",
-    "description": "智能个性化教育评估系统 - 基于细粒度知识点追踪的自适应学习平台",
+    "description": "智能个性化教育评估系统 - 本地RAG版（基于向量检索和知识图谱）",
     "model": "openPanGu-Embedded-7B-V1.1",
-    "device": "Ascend 910B NPU"
+    "device": "Ascend 910B NPU",
+    "rag_engine": "Local Vector Search + Knowledge Graph"
 }
 
 if __name__ == "__main__":
@@ -219,3 +212,4 @@ if __name__ == "__main__":
     print(f"知识点层级: {len(KNOWLEDGE_HIERARCHY)} 个大类")
     total_subpoints = sum(len(v) for v in KNOWLEDGE_HIERARCHY.values())
     print(f"知识点小类总数: {total_subpoints}")
+    print(f"RAG引擎: 本地向量检索 + 知识图谱")

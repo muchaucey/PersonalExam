@@ -1,478 +1,400 @@
 """
-出题生成模块 - 增强版
-使用盘古7B模型结合LightRAG和知识图谱生成题目
+智能题目选择器 - 基于RAG和知识图谱（优化备用选择策略）
+使用盘古7B从检索结果中选择最合适的题目
 """
 
-import json
 import logging
-import random
+import json
 import re
 from typing import List, Dict, Any, Optional
-import asyncio
 
 logger = logging.getLogger(__name__)
 
 
-class EnhancedQuestionGenerator:
-    """增强版题目生成器 - 使用盘古7B和LightRAG"""
+class SmartQuestionSelector:
+    """智能题目选择器"""
     
-    def __init__(self, llm_model, question_db, rag_engine, config: Dict[str, Any]):
+    def __init__(self, rag_engine, llm_model, question_db):
+        """
+        初始化选择器
+        
+        Args:
+            rag_engine: RAG引擎
+            llm_model: 盘古7B模型
+            question_db: 题库数据库
+        """
+        self.rag_engine = rag_engine
         self.llm_model = llm_model
         self.question_db = question_db
-        self.rag_engine = rag_engine
-        self.config = config
         
-        logger.info("✅ 增强版题目生成器初始化完成（盘古7B + LightRAG）")
+        logger.info("✅ 智能题目选择器初始化完成")
     
-    async def get_reference_from_rag(self, knowledge_point: str, 
-                                    difficulty: str = None,
-                                    count: int = 3) -> str:
-        """从RAG系统检索参考题目"""
-        try:
-            # 构建查询
-            query = f"关于{knowledge_point}的题目"
-            if difficulty:
-                query += f"，难度为{difficulty}"
-            
-            # 查询RAG
-            logger.info(f"🔍 从知识图谱检索: {query}")
-            rag_result = await self.rag_engine.query(query, mode="hybrid")
-            
-            # 同时从题库检索
-            db_questions = self.question_db.get_questions_by_minor_point(
-                knowledge_point.split('/')[0] if '/' in knowledge_point else knowledge_point,
-                knowledge_point.split('/')[1] if '/' in knowledge_point else ''
-            )
-            
-            if difficulty:
-                # 筛选难度
-                diff_map = {'简单': (0.0, 0.35), '中等': (0.35, 0.65), '困难': (0.65, 1.0)}
-                if difficulty in diff_map:
-                    low, high = diff_map[difficulty]
-                    db_questions = [q for q in db_questions 
-                                  if low <= q.get('难度', 0.5) < high]
-            
-            # 随机选择参考题目
-            if len(db_questions) > count:
-                db_questions = random.sample(db_questions, count)
-            
-            # 格式化参考示例
-            reference_text = self._format_reference_examples(db_questions)
-            
-            # 如果RAG返回有用信息，添加到参考中
-            if rag_result and "模拟" not in rag_result:
-                reference_text += f"\n\n### RAG检索结果:\n{rag_result[:500]}"
-            
-            return reference_text
-            
-        except Exception as e:
-            logger.error(f"❌ RAG检索失败: {e}")
-            # 降级为仅从题库检索
-            return self._get_reference_from_db(knowledge_point, difficulty, count)
-    
-    def _get_reference_from_db(self, knowledge_point: str, 
-                              difficulty: str = None,
-                              count: int = 3) -> str:
-        """从题库检索参考题目（降级方案）"""
-        # 先按知识点筛选
-        if '/' in knowledge_point:
-            major, minor = knowledge_point.split('/')
-            questions = self.question_db.get_questions_by_minor_point(major.strip(), minor.strip())
-        else:
-            questions = self.question_db.get_questions_by_major_point(knowledge_point)
-        
-        # 如果指定难度，进一步筛选
-        if difficulty:
-            diff_map = {'简单': (0.0, 0.35), '中等': (0.35, 0.65), '困难': (0.65, 1.0)}
-            if difficulty in diff_map:
-                low, high = diff_map[difficulty]
-                questions = [q for q in questions if low <= q.get('难度', 0.5) < high]
-        
-        # 随机选择
-        if len(questions) > count:
-            questions = random.sample(questions, count)
-        
-        return self._format_reference_examples(questions)
-    
-    def _format_reference_examples(self, questions: List[Dict[str, Any]]) -> str:
-        """格式化参考示例"""
-        if not questions:
-            return "无参考示例"
-        
-        examples = []
-        for i, q in enumerate(questions, 1):
-            example = f"""
-示例{i}:
-问题: {q.get('问题', '')}
-答案: {q.get('答案', '')}
-解析: {q.get('解析', '')}
-难度: {q.get('难度', 0.5)}
-"""
-            examples.append(example.strip())
-        
-        return "\n\n".join(examples)
-    
-    def _build_generation_prompt(self, knowledge_point: str,
-                                 difficulty: str,
-                                 reference_text: str) -> str:
-        """构建生成题目的提示词"""
-        
-        prompt = f"""你是一位经验丰富的数学教师，擅长出题。请根据以下要求生成一道高质量的数学题目。
-
-【生成要求】
-1. 知识点: {knowledge_point}
-2. 难度等级: {difficulty}
-3. 题目类型: 计算题或应用题
-
-【参考示例】
-{reference_text}
-
-【输出格式】
-请严格按照以下JSON格式输出，不要添加任何其他内容：
-
-{{
-  "问题": "题目描述",
-  "答案": "标准答案",
-  "解析": "详细解题步骤",
-  "难度": "难度值(0-1之间的小数)",
-  "知识点大类": "知识点大类名称",
-  "知识点小类": "知识点小类名称"
-}}
-
-【重要提示】
-- 题目要有明确的问题和答案
-- 解析要详细清晰，便于学生理解
-- 难度要符合要求（简单: 0.0-0.35, 中等: 0.35-0.65, 困难: 0.65-1.0）
-- 题目要原创，不要直接复制参考示例
-- 输出必须是合法的JSON格式
-
-请直接输出JSON，不要有任何前后文字说明。
-"""
-        return prompt
-    
-    async def generate_single_question(self, knowledge_point: str,
-                                      difficulty: str = "中等",
-                                      max_retries: int = 3) -> Optional[Dict[str, Any]]:
+    def select_question(self, 
+                       student_id: str,
+                       student_mastery: float,
+                       major_point: str,
+                       minor_point: str,
+                       used_question_ids: set,
+                       top_k: int = 5) -> Optional[Dict[str, Any]]:
         """
-        生成单个题目
+        选择最合适的题目（带多级降级策略）
         
         Args:
-            knowledge_point: 知识点（可以是"大类/小类"格式）
-            difficulty: 难度等级
-            max_retries: 最大重试次数
+            student_id: 学生ID
+            student_mastery: 学生掌握度
+            major_point: 知识点大类
+            minor_point: 知识点小类
+            used_question_ids: 已使用的题目ID
+            top_k: 检索题目数量
+            
+        Returns:
+            选中的题目
         """
-        for attempt in range(max_retries):
-            try:
-                logger.info(f"🤖 正在使用盘古7B生成题目 (尝试 {attempt+1}/{max_retries})...")
-                
-                # 1. 从RAG检索参考
-                reference_text = await self.get_reference_from_rag(
-                    knowledge_point, difficulty, count=2
-                )
-                
-                # 2. 构建提示词
-                prompt = self._build_generation_prompt(
-                    knowledge_point, difficulty, reference_text
-                )
-                
-                # 3. 确保盘古模型已加载
-                if not self.llm_model.is_loaded:
-                    logger.info("📥 首次使用，正在加载盘古7B模型...")
-                    self.llm_model.load_model()
-                
-                # 4. 调用盘古7B生成
-                logger.info("🔄 盘古7B正在生成题目...")
-                response = self.llm_model.generate(
-                    prompt, 
-                    temperature=0.8,  # 提高创造性
-                    max_length=2048
-                )
-                
-                logger.info(f"📝 盘古7B响应: {response[:200]}...")
-                
-                # 5. 解析响应
-                question = self._parse_generated_question(response)
-                
-                if question:
-                    # 确保知识点字段正确
-                    if '/' in knowledge_point:
-                        major, minor = knowledge_point.split('/')
-                        question['knowledge_point_major'] = major.strip()
-                        question['knowledge_point_minor'] = minor.strip()
-                        question['知识点大类'] = major.strip()
-                        question['知识点小类'] = minor.strip()
-                    
-                    logger.info("✅ 题目生成成功（盘古7B）")
-                    return question
-                else:
-                    logger.warning(f"⚠️  题目解析失败，重试中...")
-                    
-            except Exception as e:
-                logger.error(f"❌ 生成题目出错: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
+        logger.info(f"🎯 为学生 {student_id} 选择题目: {major_point}/{minor_point}, "
+                   f"掌握度 {student_mastery:.3f}")
         
-        logger.error(f"❌ 生成题目失败，已尝试 {max_retries} 次")
-        return None
+        # 1. 构建知识子图
+        subgraph = self.rag_engine.build_knowledge_subgraph(
+            student_mastery=student_mastery,
+            major_point=major_point,
+            minor_point=minor_point,
+            top_k=top_k
+        )
+        
+        if not subgraph['retrieved_questions']:
+            logger.warning("⚠️ RAG未检索到题目，使用多级降级备用方案")
+            return self._multi_level_fallback_selection(
+                major_point, minor_point, student_mastery, used_question_ids
+            )
+        
+        # 2. 过滤掉已使用的题目
+        candidate_questions = []
+        for item in subgraph['retrieved_questions']:
+            q = item['question']
+            q_id = q.get('题号')
+            if q_id not in used_question_ids:
+                candidate_questions.append(item)
+        
+        if not candidate_questions:
+            logger.warning(f"⚠️ RAG检索到的 {len(subgraph['retrieved_questions'])} 道题都已使用，"
+                          f"使用多级降级备用方案")
+            return self._multi_level_fallback_selection(
+                major_point, minor_point, student_mastery, used_question_ids
+            )
+        
+        # 3. 使用盘古7B选择最合适的题目
+        selected_question = self._llm_select_question(
+            candidate_questions=candidate_questions,
+            student_mastery=student_mastery,
+            knowledge_subgraph=subgraph
+        )
+        
+        if selected_question:
+            logger.info(f"✅ 选中题目 {selected_question.get('题号')} "
+                       f"(难度: {selected_question.get('难度', 0.5):.2f})")
+            return selected_question
+        else:
+            # 如果LLM选择失败，使用简单策略
+            logger.warning("⚠️ LLM选择失败，使用启发式策略")
+            return candidate_questions[0]['question']
     
-    def _parse_generated_question(self, response: str) -> Optional[Dict[str, Any]]:
-        """解析盘古7B生成的题目"""
+    def _llm_select_question(self,
+                            candidate_questions: List[Dict[str, Any]],
+                            student_mastery: float,
+                            knowledge_subgraph: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        使用盘古7B选择题目
+        
+        Args:
+            candidate_questions: 候选题目列表
+            student_mastery: 学生掌握度
+            knowledge_subgraph: 知识子图
+            
+        Returns:
+            选中的题目
+        """
+        # 如果只有1道候选题，直接返回
+        if len(candidate_questions) == 1:
+            logger.info("✅ 只有1道候选题，直接选择")
+            return candidate_questions[0]['question']
+        
+        # 构建简洁的候选题目列表
+        candidates_text = ""
+        for i, item in enumerate(candidate_questions, 1):
+            q = item['question']
+            candidates_text += f"""题目{i} (ID:{q.get('题号')}, 难度:{q.get('难度', 0.5):.2f}, 相似度:{item.get('score', 0):.3f})
+问题: {q.get('问题', '')[:80]}...
+"""
+        
+        # 简化知识图谱信息
+        entities_text = "、".join([e['name'] for e in knowledge_subgraph['entities'][:5]]) if knowledge_subgraph['entities'] else "无"
+        
+        # 优化提示词 - 更简洁清晰
+        prompt = f"""你是数学教师，为学生选择最合适的题目。
+
+学生情况: 掌握度{student_mastery:.1%}，目标知识点{knowledge_subgraph['target_knowledge']}
+相关概念: {entities_text}
+
+候选题目（共{len(candidate_questions)}道）:
+{candidates_text}
+
+要求: 选择1道最适合该学生当前水平的题目
+
+输出格式(只输出数字):
+ID: [题目ID数字]
+"""
+        
         try:
-            # 1. 尝试找到JSON部分
-            start_idx = response.find('{')
-            end_idx = response.rfind('}') + 1
+            # 确保模型已加载
+            if not self.llm_model.is_loaded:
+                logger.info("🔄 加载盘古7B模型...")
+                self.llm_model.load_model()
             
-            if start_idx == -1 or end_idx == 0:
-                logger.error("❌ 响应中未找到JSON格式")
-                return self._extract_question_from_text(response)
+            # 生成（降低温度）
+            logger.info("🤖 盘古7B正在选择题目...")
+            response = self.llm_model.generate(prompt, temperature=0.3, max_length=512)
             
-            json_str = response[start_idx:end_idx]
+            # 解析响应
+            selected_id = self._parse_selection_response_simple(response)
             
-            # 2. 尝试直接解析
-            try:
-                question = json.loads(json_str)
-                logger.info("✅ JSON解析成功")
-            except json.JSONDecodeError as e:
-                logger.warning(f"⚠️  直接JSON解析失败: {e}，尝试修复")
-                
-                # 修复常见JSON格式问题
-                json_str = re.sub(r'(\w+):', r'"\1":', json_str)  # 修复缺少引号的键
-                json_str = json_str.replace("'", '"')  # 单引号转双引号
-                
-                try:
-                    question = json.loads(json_str)
-                    logger.info("✅ 修复后JSON解析成功")
-                except json.JSONDecodeError as e2:
-                    logger.warning(f"⚠️  修复后仍失败: {e2}，提取关键信息")
-                    return self._extract_question_from_text(response)
+            if selected_id is None:
+                logger.warning("⚠️ LLM选择失败，使用启发式规则")
+                return self._heuristic_selection(candidate_questions, student_mastery)
             
-            # 3. 验证必要字段
-            required_fields = ['问题', '答案', '解析']
-            for field in required_fields:
-                if field not in question or not question[field]:
-                    logger.error(f"❌ 缺少必要字段: {field}")
-                    return None
+            # 查找对应题目
+            for item in candidate_questions:
+                if item['question'].get('题号') == selected_id:
+                    logger.info(f"✅ 盘古7B选中题目 {selected_id}")
+                    return item['question']
             
-            # 4. 确保有难度值
-            if '难度' not in question:
-                question['难度'] = 0.5
-            elif isinstance(question['难度'], str):
-                # 如果是字符串，尝试转换
-                try:
-                    question['难度'] = float(question['难度'])
-                except:
-                    question['难度'] = 0.5
-            
-            return question
+            logger.warning(f"⚠️ 选中的ID {selected_id} 不存在，使用启发式规则")
+            return self._heuristic_selection(candidate_questions, student_mastery)
             
         except Exception as e:
-            logger.error(f"❌ 解析题目失败: {e}")
-            return None
+            logger.error(f"❌ LLM选择失败: {e}")
+            return self._heuristic_selection(candidate_questions, student_mastery)
     
-    def _extract_question_from_text(self, response: str) -> Optional[Dict[str, Any]]:
-        """从文本中提取题目信息（后备方案）"""
+    def _parse_selection_response_simple(self, response: str) -> Optional[int]:
+        """简化的响应解析 - 只提取数字ID"""
         try:
-            question = {}
+            # 方法1: 查找 "ID: 数字" 模式
+            patterns = [
+                r'ID\s*[：:]\s*(\d+)',
+                r'题目\s*(\d+)',
+                r'选择\s*(\d+)',
+                r'(\d+)',  # 任何数字
+            ]
             
-            # 提取各个字段
-            patterns = {
-                '问题': r'问题[:：]\s*([^\n]+)',
-                '答案': r'答案[:：]\s*([^\n]+)',
-                '解析': r'解析[:：]\s*([^\n]+)',
-                '难度': r'难度[:：]\s*([^\n]+)',
-                '知识点': r'知识点[:：]\s*([^\n]+)'
-            }
-            
-            for field, pattern in patterns.items():
-                match = re.search(pattern, response, re.MULTILINE)
+            for pattern in patterns:
+                match = re.search(pattern, response)
                 if match:
-                    question[field] = match.group(1).strip()
+                    selected_id = int(match.group(1))
+                    logger.debug(f"提取到ID: {selected_id}")
+                    return selected_id
             
-            # 检查是否提取到足够信息
-            if len(question) >= 3:
-                logger.info("✅ 从文本提取题目信息成功")
-                
-                # 处理难度
-                if '难度' in question:
-                    try:
-                        question['难度'] = float(question['难度'])
-                    except:
-                        question['难度'] = 0.5
-                
-                return question
-            else:
-                logger.error("❌ 提取的题目信息不完整")
-                return None
-                
+            return None
+            
         except Exception as e:
-            logger.error(f"❌ 文本提取失败: {e}")
+            logger.warning(f"⚠️ 解析失败: {e}")
             return None
     
-    def generate_question_set(self, knowledge_point: str,
-                            count: int,
-                            difficulty_distribution: Dict[str, float] = None) -> List[Dict[str, Any]]:
+    def _heuristic_selection(self, 
+                            candidate_questions: List[Dict[str, Any]],
+                            student_mastery: float) -> Dict[str, Any]:
         """
-        生成题目集合（同步包装）
+        启发式题目选择（后备方案）
+        综合考虑：难度匹配 + RAG相似度
+        """
+        logger.info("📊 使用启发式规则选择题目")
+        
+        # 根据掌握度确定目标难度
+        if student_mastery < 0.3:
+            target_difficulty = 0.25  # 简单
+        elif student_mastery < 0.7:
+            target_difficulty = 0.50  # 中等
+        else:
+            target_difficulty = 0.75  # 困难
+        
+        # 计算每道题的综合得分
+        best_question = None
+        best_score = -999999
+        
+        for item in candidate_questions:
+            q = item['question']
+            difficulty = q.get('难度', 0.5)
+            rag_score = item.get('score', 0)
+            
+            # 难度匹配得分（越接近目标越好）
+            difficulty_score = 1.0 - abs(difficulty - target_difficulty)
+            
+            # 综合得分 = 难度匹配(60%) + RAG相似度(40%)
+            total_score = 0.6 * difficulty_score + 0.4 * rag_score
+            
+            if total_score > best_score:
+                best_score = total_score
+                best_question = q
+        
+        if best_question:
+            logger.info(f"✅ 启发式选中题目 {best_question.get('题号')} (得分: {best_score:.3f})")
+        
+        return best_question
+    
+    def _multi_level_fallback_selection(self, 
+                                       major_point: str,
+                                       minor_point: str,
+                                       student_mastery: float,
+                                       used_question_ids: set) -> Optional[Dict[str, Any]]:
+        """
+        多级降级备用选择方案
+        
+        降级策略：
+        1. 精确匹配：major + minor + difficulty
+        2. 大类匹配：major + difficulty（忽略minor）
+        3. 大类匹配：major（忽略difficulty）
+        4. 最后备用：任意未使用的题目
         
         Args:
-            knowledge_point: 知识点
-            count: 题目数量
-            difficulty_distribution: 难度分布
-        """
-        # 运行异步函数
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(
-                self._async_generate_question_set(
-                    knowledge_point, count, difficulty_distribution
-                )
-            )
-            return result
-        finally:
-            loop.close()
-    
-    async def _async_generate_question_set(self, knowledge_point: str,
-                                          count: int,
-                                          difficulty_distribution: Dict[str, float] = None) -> List[Dict[str, Any]]:
-        """异步生成题目集合"""
-        if difficulty_distribution is None:
-            difficulty_distribution = {'简单': 0.3, '中等': 0.5, '困难': 0.2}
-        
-        # 计算每个难度的题目数量
-        difficulty_counts = {}
-        remaining = count
-        
-        for difficulty, ratio in difficulty_distribution.items():
-            num = int(count * ratio)
-            difficulty_counts[difficulty] = num
-            remaining -= num
-        
-        # 剩余的分配给中等难度
-        if remaining > 0:
-            difficulty_counts['中等'] = difficulty_counts.get('中等', 0) + remaining
-        
-        # 生成题目
-        generated_questions = []
-        
-        for difficulty, num in difficulty_counts.items():
-            logger.info(f"📝 正在生成 {num} 道{difficulty}难度的题目...")
+            major_point: 知识点大类
+            minor_point: 知识点小类
+            student_mastery: 学生掌握度
+            used_question_ids: 已使用的题目ID
             
-            for i in range(num):
-                question = await self.generate_single_question(
-                    knowledge_point=knowledge_point,
-                    difficulty=difficulty
-                )
-                
-                if question:
-                    generated_questions.append(question)
-                    logger.info(f"✅ 进度: {len(generated_questions)}/{count}")
-                else:
-                    logger.warning(f"⚠️  生成第{i+1}题失败，跳过")
+        Returns:
+            选中的题目
+        """
+        logger.info("🔄 启动多级降级备用选择方案...")
         
-        logger.info(f"🎉 题目生成完成，成功 {len(generated_questions)}/{count} 道")
-        return generated_questions
-
-
-class MockQuestionGenerator:
-    """模拟题目生成器（从题库抽取）"""
-    
-    def __init__(self, llm_model, question_db, rag_engine, config: Dict[str, Any]):
-        self.question_db = question_db
-        self.config = config
-        logger.info("⚠️  使用模拟题目生成器（从题库抽取）")
-    
-    async def generate_single_question(self, knowledge_point: str, 
-                                      difficulty: str = "中等") -> Optional[Dict[str, Any]]:
-        """从题库抽取题目"""
-        if '/' in knowledge_point:
-            major, minor = knowledge_point.split('/')
-            questions = self.question_db.get_questions_by_minor_point(
-                major.strip(), minor.strip()
-            )
+        # 根据掌握度确定难度范围
+        if student_mastery < 0.3:
+            difficulty_range = (0.0, 0.4)
+            difficulty_desc = "简单"
+        elif student_mastery < 0.7:
+            difficulty_range = (0.3, 0.7)
+            difficulty_desc = "中等"
         else:
-            questions = self.question_db.get_questions_by_major_point(knowledge_point)
+            difficulty_range = (0.6, 1.0)
+            difficulty_desc = "困难"
         
-        # 筛选难度
-        diff_map = {'简单': (0.0, 0.35), '中等': (0.35, 0.65), '困难': (0.65, 1.0)}
-        if difficulty in diff_map:
-            low, high = diff_map[difficulty]
-            questions = [q for q in questions if low <= q.get('难度', 0.5) < high]
+        # 【第1级】精确匹配：major + minor + difficulty
+        logger.info(f"📍 第1级：尝试精确匹配（{major_point}/{minor_point}, 难度{difficulty_desc}）")
+        questions = self.question_db.get_questions_filtered(
+            major_point=major_point,
+            minor_point=minor_point,
+            difficulty_range=difficulty_range
+        )
+        available = [q for q in questions if q.get('题号') not in used_question_ids]
         
-        if questions:
-            return random.choice(questions)
-        return None
-    
-    def generate_question_set(self, knowledge_point: str, count: int, **kwargs):
-        """生成题目集"""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            questions = []
-            for _ in range(count):
-                q = loop.run_until_complete(
-                    self.generate_single_question(knowledge_point)
-                )
-                if q:
-                    questions.append(q)
-            return questions
-        finally:
-            loop.close()
+        if available:
+            import random
+            selected = random.choice(available)
+            logger.info(f"✅ 第1级成功：选中题目 {selected.get('题号')} "
+                       f"({major_point}/{minor_point}, 难度{selected.get('难度', 0.5):.2f})")
+            return selected
+        else:
+            logger.info(f"⚠️  第1级失败：{major_point}/{minor_point} + 难度范围{difficulty_range}下无可用题目")
+        
+        # 【第2级】大类匹配：major + difficulty（忽略minor）
+        logger.info(f"📍 第2级：尝试同大类其他小类（{major_point}, 难度{difficulty_desc}）")
+        questions = self.question_db.get_questions_filtered(
+            major_point=major_point,
+            minor_point=None,  # 不限制小类
+            difficulty_range=difficulty_range
+        )
+        available = [q for q in questions if q.get('题号') not in used_question_ids]
+        
+        if available:
+            import random
+            selected = random.choice(available)
+            selected_minor = selected.get('知识点小类', selected.get('knowledge_point_minor', '未知'))
+            logger.info(f"✅ 第2级成功：选中题目 {selected.get('题号')} "
+                       f"({major_point}/{selected_minor}, 难度{selected.get('难度', 0.5):.2f})")
+            return selected
+        else:
+            logger.info(f"⚠️  第2级失败：{major_point}大类 + 难度范围{difficulty_range}下无可用题目")
+        
+        # 【第3级】大类匹配：major（忽略difficulty）
+        logger.info(f"📍 第3级：尝试同大类任意难度（{major_point}）")
+        questions = self.question_db.get_questions_filtered(
+            major_point=major_point,
+            minor_point=None,
+            difficulty_range=None  # 不限制难度
+        )
+        available = [q for q in questions if q.get('题号') not in used_question_ids]
+        
+        if available:
+            import random
+            selected = random.choice(available)
+            selected_minor = selected.get('知识点小类', selected.get('knowledge_point_minor', '未知'))
+            logger.info(f"✅ 第3级成功：选中题目 {selected.get('题号')} "
+                       f"({major_point}/{selected_minor}, 难度{selected.get('难度', 0.5):.2f})")
+            return selected
+        else:
+            logger.info(f"⚠️  第3级失败：{major_point}大类下无可用题目")
+        
+        # 【第4级】最后备用：任意未使用的题目
+        logger.warning("📍 第4级：选择任意未使用的题目（不限知识点和难度）")
+        all_questions = self.question_db.get_all_questions()
+        available = [q for q in all_questions if q.get('题号') not in used_question_ids]
+        
+        if available:
+            import random
+            selected = random.choice(available)
+            selected_major = selected.get('知识点大类', selected.get('knowledge_point_major', '未知'))
+            selected_minor = selected.get('知识点小类', selected.get('knowledge_point_minor', '未知'))
+            logger.warning(f"⚠️  第4级成功（但偏离目标）：选中题目 {selected.get('题号')} "
+                          f"({selected_major}/{selected_minor}, 难度{selected.get('难度', 0.5):.2f})")
+            return selected
+        else:
+            # 真的没题了
+            logger.error("❌ 所有4级备用方案均失败：题库中所有题目都已使用或无可用题目")
+            total_count = len(all_questions)
+            used_count = len(used_question_ids)
+            logger.error(f"📊 题库统计：总题目{total_count}道，已使用{used_count}道，"
+                        f"剩余{total_count - used_count}道")
+            return None
 
 
-def create_question_generator(llm_model, question_db, rag_engine, config: Dict[str, Any],
-                             use_real_generation: bool = True):
-    """
-    创建题目生成器
-    
-    Args:
-        llm_model: 盘古7B模型
-        question_db: 题库
-        rag_engine: RAG引擎
-        config: 配置
-        use_real_generation: 是否使用真实生成（False则从题库抽取）
-    """
-    if use_real_generation:
-        return EnhancedQuestionGenerator(llm_model, question_db, rag_engine, config)
-    return MockQuestionGenerator(llm_model, question_db, rag_engine, config)
+def create_question_selector(rag_engine, llm_model, question_db) -> SmartQuestionSelector:
+    """创建题目选择器"""
+    return SmartQuestionSelector(rag_engine, llm_model, question_db)
 
 
 if __name__ == "__main__":
     # 测试代码
     import sys
     sys.path.append("..")
-    from config import (PANGU_MODEL_PATH, QUESTION_MODEL_CONFIG,
-                       QUESTION_DB, LIGHTRAG_CONFIG)
-    from models import create_llm_model
+    from config import (BGE_M3_MODEL_PATH, PANGU_MODEL_PATH, 
+                       EMBEDDING_MODEL_CONFIG, PANGU_MODEL_CONFIG, QUESTION_DB)
+    from models.embedding_model import create_embedding_model
+    from models.llm_models import create_llm_model
     from data_management.question_db import create_question_database
     from knowledge_management.rag_engine import create_rag_engine
-    from models.embedding_model import create_embedding_model, lightrag_embedding_func
     
     logging.basicConfig(level=logging.INFO)
     
     # 创建组件
-    pangu_model = create_llm_model('pangu', PANGU_MODEL_PATH, QUESTION_MODEL_CONFIG)
+    embedding_model = create_embedding_model(BGE_M3_MODEL_PATH, EMBEDDING_MODEL_CONFIG)
+    llm_model = create_llm_model('pangu', PANGU_MODEL_PATH, PANGU_MODEL_CONFIG)
     question_db = create_question_database(str(QUESTION_DB))
+    rag_engine = create_rag_engine(embedding_model, llm_model)
     
-    # 创建嵌入模型和RAG
-    embedding_model = create_embedding_model(
-        "/home/weitianyu/bgem3",
-        {"device": "cpu", "batch_size": 32}
+    # 构建索引
+    all_questions = question_db.get_all_questions()
+    rag_engine.build_question_index(all_questions)
+    
+    # 创建选择器
+    selector = create_question_selector(rag_engine, llm_model, question_db)
+    
+    # 测试选择
+    selected = selector.select_question(
+        student_id="test_001",
+        student_mastery=0.5,
+        major_point="代数",
+        minor_point="一元二次方程",
+        used_question_ids=set()
     )
-    rag_engine = create_rag_engine(
-        LIGHTRAG_CONFIG,
-        lambda texts: lightrag_embedding_func(texts, embedding_model)
-    )
     
-    # 创建生成器
-    generator = create_question_generator(
-        pangu_model, question_db, rag_engine, {}, use_real_generation=True
-    )
-    
-    # 测试生成
-    async def test():
-        question = await generator.generate_single_question("代数/一元二次方程", "简单")
-        if question:
-            print(f"\n生成的题目:\n{json.dumps(question, ensure_ascii=False, indent=2)}")
-    
-    asyncio.run(test())
+    if selected:
+        print(f"选中题目: {selected.get('题号')}")
+    else:
+        print("选择失败")

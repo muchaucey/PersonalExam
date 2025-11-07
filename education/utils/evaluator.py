@@ -7,6 +7,7 @@ import logging
 from typing import List, Dict, Any, Tuple
 from datetime import datetime
 import re
+from difflib import SequenceMatcher
 
 logger = logging.getLogger(__name__)
 
@@ -50,26 +51,42 @@ class PersonalizedStudentEvaluator:
         )
         
         try:
+            # 1) 先进行快速严格匹配：完全等价则直接返回，跳过LLM，显著降低延迟
+            strict_ok = self._strict_answer_check(question, student_answer)
+            if strict_ok:
+                # 返回可解释理由（不调用LLM）
+                return True, self._build_reason_for_strict(question, student_answer, True)
+
+            # 2) 需要LLM参与的再调用模型
             if not self.llm_model.is_loaded:
                 logger.info("🔄 首次使用，正在加载盘古7B模型...")
                 self.llm_model.load_model()
             
             logger.info("🤖 使用盘古7B模型进行智能答案评估（严格模式）")
-            response = self.llm_model.generate(prompt, temperature=0.1)
+            # 缩短生成长度、关闭采样以提升速度和稳定性
+            response = self.llm_model.generate(
+                prompt,
+                temperature=0.1,
+                top_p=0.9,
+                max_length=256,
+                do_sample=False
+            )
             
             is_correct, reason = self._parse_model_response(response)
             
             if is_correct is None:
                 logger.warning("⚠️  模型响应不明确，使用备用严格判断逻辑")
                 is_correct = self._strict_answer_check(question, student_answer)
-                reason = f"备用判断: {'正确' if is_correct else '错误 - 答案不完整或不准确'}"
+                reason = self._build_reason_for_strict(question, student_answer, bool(is_correct))
             
             return is_correct, reason
             
         except Exception as e:
             logger.error(f"❌ 答案检查失败: {e}")
             is_correct = self._strict_answer_check(question, student_answer)
-            return is_correct, f"模型调用失败，使用备用判断: {'正确' if is_correct else '错误'}"
+            # 使用规则化可解释理由（即使模型调用失败也要有详细理由）
+            reason = self._build_reason_for_strict(question, student_answer, bool(is_correct))
+            return is_correct, reason
     
     def _parse_model_response(self, response: str) -> Tuple[bool, str]:
         """解析模型响应"""
@@ -171,6 +188,65 @@ class PersonalizedStudentEvaluator:
     def _extract_numbers(self, text: str) -> List[str]:
         """提取数字"""
         return re.findall(r'-?\d+\.?\d*', text)
+
+    # ==================== 规则化可解释理由（用于快速判定/回退） ====================
+    def _normalize_text(self, text: str) -> str:
+        return re.sub(r'[\s\.,;!?，。；！？、]', '', (text or '').lower().strip())
+
+    def _numbers_diff(self, std_text: str, stu_text: str, tol: float = 1e-2):
+        std_nums = self._extract_numbers(std_text)
+        stu_nums = self._extract_numbers(stu_text)
+        mismatches = []
+        for s in std_nums:
+            try:
+                s_val = float(s)
+            except Exception:
+                continue
+            if not any(abs(s_val - float(t)) < tol for t in stu_nums):
+                mismatches.append(s)
+        return mismatches, std_nums, stu_nums
+
+    def _build_reason_for_strict(self, question: Dict[str, Any], student_answer: str, is_correct: bool) -> str:
+        std = (question.get('答案') or '')
+        std_norm = self._normalize_text(std)
+        stu_norm = self._normalize_text(student_answer)
+
+        # 关键点覆盖
+        keys = self._extract_key_information(std)
+        missing = [k for k in keys if not self._contains_info(student_answer.lower(), k)]
+        hit = [k for k in keys if k not in missing]
+
+        # 数值一致性
+        num_miss, std_nums, stu_nums = self._numbers_diff(std, student_answer)
+
+        # 相似度
+        sim = 0.0
+        try:
+            sim = SequenceMatcher(None, std_norm, stu_norm).ratio()
+        except Exception:
+            pass
+
+        lines = []
+        if is_correct:
+            if hit:
+                lines.append(f"完整性: 覆盖关键要点（{', '.join(hit)}）")
+            else:
+                lines.append("完整性: 关键要点已覆盖")
+            lines.append("准确性: 关键表达一致")
+            if std_nums:
+                lines.append(f"数值一致性: 一致（标准: {std_nums}，你的: {stu_nums}）")
+            if sim:
+                lines.append(f"文本相似度: {sim:.0%}")
+        else:
+            if missing:
+                lines.append(f"缺失要点: {', '.join(missing)}")
+            if num_miss:
+                lines.append(f"数值不一致: 缺少/不匹配 {num_miss}（标准: {std_nums}，你的: {stu_nums}）")
+            if sim and sim < 0.8:
+                lines.append(f"文本相似度偏低: {sim:.0%}")
+            if not lines:
+                lines.append("与标准答案存在关键信息差异")
+        return "；".join(lines)
     
     def analyze_learning_pattern(self, answer_records: List[Dict[str, Any]]) -> Dict[str, Any]:
         """

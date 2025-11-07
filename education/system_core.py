@@ -108,6 +108,12 @@ class SmartEducationSystem:
                 self.config.VISUALIZATION_CONFIG
             )
             
+            # 构建知识图谱（从题库）
+            logger.info("🔄 正在构建知识图谱...")
+            questions = self.question_db.get_all_questions()
+            self.visualizer.build_graph_from_questions(questions)
+            logger.info("✅ 知识图谱构建完成")
+            
             self.models_loaded = True
             logger.info("✅ 系统初始化完成 - 本地RAG智能个性化学习版")
             

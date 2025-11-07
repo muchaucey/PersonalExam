@@ -38,7 +38,11 @@ class SmartEducationUI:
                 with gr.Tab("📊 学习分析"):
                     self._create_analysis_tab()
                 
-                # Tab 3: 系统管理
+                # Tab 3: 知识图谱
+                with gr.Tab("🕸️ 知识图谱"):
+                    self._create_knowledge_graph_tab()
+                
+                # Tab 4: 系统管理
                 with gr.Tab("⚙️ 系统管理"):
                     self._create_management_tab()
         
@@ -187,6 +191,42 @@ class SmartEducationUI:
             fn=self._analyze_student,
             inputs=[student_id_for_analysis],
             outputs=[overall_stats, weak_points_display, detailed_profile]
+        )
+    
+    def _create_knowledge_graph_tab(self):
+        """创建知识图谱标签页"""
+        
+        gr.Markdown("### 🕸️ 知识图谱可视化")
+        gr.Markdown("*展示题目、知识点和难度之间的关系网络*")
+        
+        with gr.Row():
+            layout_choice = gr.Radio(
+                choices=["spring", "circular", "kamada_kawai"],
+                value="spring",
+                label="布局算法",
+                info="选择图谱的布局方式"
+            )
+            refresh_btn = gr.Button("🔄 刷新图谱", variant="primary")
+        
+        # 知识图谱展示（初始化时自动加载）
+        initial_fig, initial_stats = self._refresh_knowledge_graph("spring")
+        kg_plot = gr.Plot(label="知识图谱", value=initial_fig)
+        
+        # 图谱统计信息
+        kg_stats = gr.Markdown(value=initial_stats)
+        
+        # 事件绑定
+        refresh_btn.click(
+            fn=self._refresh_knowledge_graph,
+            inputs=[layout_choice],
+            outputs=[kg_plot, kg_stats]
+        )
+        
+        # 布局选择变化时自动刷新
+        layout_choice.change(
+            fn=self._refresh_knowledge_graph,
+            inputs=[layout_choice],
+            outputs=[kg_plot, kg_stats]
         )
     
     def _create_management_tab(self):
@@ -626,6 +666,42 @@ class SmartEducationUI:
             return "✅ NPU缓存已清除"
         except Exception as e:
             return f"❌ 清除失败: {str(e)}"
+    
+    def _refresh_knowledge_graph(self, layout: str):
+        """刷新知识图谱"""
+        try:
+            # 获取图谱可视化
+            fig = self.system.visualizer.create_plotly_figure(
+                layout=layout,
+                title="知识图谱 - 题目与知识点关系网络"
+            )
+            
+            # 获取图谱统计
+            stats = self.system.visualizer.get_graph_statistics()
+            
+            # 格式化统计信息为 Markdown
+            stats_md = f"""
+### 📊 图谱统计信息
+
+| 指标 | 数值 |
+|------|------|
+| 📊 总节点数 | **{stats['total_nodes']}** 个 |
+| 🔗 总边数 | **{stats['total_edges']}** 条 |
+| 📈 图谱密度 | {stats['density']:.4f} |
+| 🔄 连通性 | {'✅ 连通' if stats['is_connected'] else '❌ 非连通'} |
+
+### 📋 节点类型分布
+"""
+            for node_type, count in stats['node_types'].items():
+                type_name = {'knowledge': '知识点', 'difficulty': '难度', 'question': '题目'}.get(node_type, node_type)
+                stats_md += f"- **{type_name}**: {count} 个\n"
+            
+            return fig, stats_md
+            
+        except Exception as e:
+            logger.error(f"刷新知识图谱失败: {e}")
+            error_md = f"### ❌ 错误\n\n加载知识图谱失败: {str(e)}"
+            return None, error_md
 
 
 def create_ui(system_core) -> gr.Blocks:

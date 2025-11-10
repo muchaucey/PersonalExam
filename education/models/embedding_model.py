@@ -1,4 +1,10 @@
+# -*- coding: utf-8 -*-
 """
+Copyright (c) 2025 AI系统及应用课题组@SRIBD
+
+基于LLM和知识图谱协同的个性化出题系统 (PersonalExam)
+Personalized Question Generation System Based on LLM and Knowledge Graph Collaboration
+
 嵌入模型接口模块
 优先使用盘古7B的嵌入功能，备用BGE-M3模型
 """

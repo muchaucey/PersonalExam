@@ -1,12 +1,12 @@
-# 🧠 智能个性化教育评估系统
+# 🧠 基于LLM和知识图谱协同的个性化出题系统
 
-**Intelligent Personalized Education Assessment System**
+**Personalized Question Generation System Based on LLM and Knowledge Graph Collaboration**
 
 [![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](https://github.com/yourusername/PersonalExam)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-OpenPangu%20Model%20License%20v1.0-blue.svg)](LICENSE)
 
-一个基于AI驱动的自适应学习平台，使用BKT算法、RAG引擎和OpenPangu模型，实现个性化的教育评估和智能题目推荐。
+一个基于LLM和知识图谱协同的个性化出题系统，使用BKT算法、RAG引擎和OpenPangu模型，实现个性化的智能题目生成和推荐。
 
 **Powered by OpenPangu** - OpenPangu是华为技术有限公司的商标。
 
@@ -662,8 +662,7 @@ A: 检查以下几点：
 
 ## 📞 联系方式
 
-- **项目维护者**: [您的姓名/组织]
-- **邮箱**: [您的邮箱]
+- **项目维护者**: AI系统及应用课题组@SRIBD
 - **Issues**: [GitHub Issues链接]
 
 ## 📚 相关资源
@@ -679,7 +678,7 @@ A: 检查以下几点：
 
 ---
 
-**Made with ❤️ by AI Education Team**
+**Made with ❤️ by AI系统及应用课题组@SRIBD**
 
 *最后更新: 2025年*
 

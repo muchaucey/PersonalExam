@@ -1,4 +1,10 @@
+# -*- coding: utf-8 -*-
 """
+Copyright (c) 2025 AI系统及应用课题组@SRIBD
+
+基于LLM和知识图谱协同的个性化出题系统 (PersonalExam)
+Personalized Question Generation System Based on LLM and Knowledge Graph Collaboration
+
 教育评估系统配置文件 - 本地RAG版本
 移除LightRAG依赖，使用本地向量检索
 """
@@ -135,7 +141,7 @@ VISUALIZATION_CONFIG = {
 
 # ==================== UI配置 ====================
 UI_CONFIG = {
-    "title": "智能个性化教育评估系统 - 本地RAG驱动",
+    "title": "基于LLM和知识图谱协同的个性化出题系统",
     "theme": "default",
     "port": 7860,
     "share": False,
@@ -197,8 +203,8 @@ LOGGING_CONFIG = {
 # ==================== 系统信息 ====================
 SYSTEM_INFO = {
     "version": "3.1.0",
-    "author": "AI Education Team",
-    "description": "智能个性化教育评估系统 - 本地RAG版（基于向量检索和知识图谱）",
+    "author": "AI系统及应用课题组@SRIBD",
+    "description": "基于LLM和知识图谱协同的个性化出题系统（基于向量检索和知识图谱）",
     "model": "openPanGu-Embedded-7B-V1.1",
     "device": "Ascend 910B NPU",
     "rag_engine": "Local Vector Search + Knowledge Graph"

@@ -1,4 +1,10 @@
+# -*- coding: utf-8 -*-
 """
+Copyright (c) 2025 AI系统及应用课题组@SRIBD
+
+基于LLM和知识图谱协同的个性化出题系统 (PersonalExam)
+Personalized Question Generation System Based on LLM and Knowledge Graph Collaboration
+
 LLM模型接口模块
 统一使用PanGu-7B模型，支持昇腾NPU加速和多NPU并行
 优化：单例模式避免重复加载，支持多NPU负载均衡

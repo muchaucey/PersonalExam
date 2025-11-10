@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+Copyright (c) 2025 AI系统及应用课题组@SRIBD
+
+基于LLM和知识图谱协同的个性化出题系统 (PersonalExam)
+Personalized Question Generation System Based on LLM and Knowledge Graph Collaboration
+"""
+
 import sys
 import logging
 from pathlib import Path
@@ -28,7 +36,7 @@ def setup_logging():
 
 def main():
     print("=" * 70)
-    print("🧠 智能个性化教育评估系统 - AI驱动自适应学习平台")
+    print("🧠 基于LLM和知识图谱协同的个性化出题系统")
     print("=" * 70)
     
     setup_logging()

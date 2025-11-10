@@ -1,4 +1,10 @@
+# -*- coding: utf-8 -*-
 """
+Copyright (c) 2025 AI系统及应用课题组@SRIBD
+
+基于LLM和知识图谱协同的个性化出题系统 (PersonalExam)
+Personalized Question Generation System Based on LLM and Knowledge Graph Collaboration
+
 贝叶斯知识追踪(BKT)算法模块 - 细粒度知识点版本
 支持知识点小类级别的精细追踪
 """

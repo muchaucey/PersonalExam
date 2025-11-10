@@ -1,4 +1,10 @@
+# -*- coding: utf-8 -*-
 """
+Copyright (c) 2025 AI系统及应用课题组@SRIBD
+
+基于LLM和知识图谱协同的个性化出题系统 (PersonalExam)
+Personalized Question Generation System Based on LLM and Knowledge Graph Collaboration
+
 智能题目选择器 - 基于RAG和知识图谱（优化备用选择策略）
 使用盘古7B从检索结果中选择最合适的题目
 """

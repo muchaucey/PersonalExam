@@ -496,7 +496,7 @@ BUSL 1.1 是一种源代码可见的许可证，允许：
 - **[torch-npu](https://www.hiascend.com/)** (2.5.1.post1, Apache 2.0) - 昇腾NPU支持
 - **[Transformers](https://huggingface.co/transformers)** (4.53.2, Apache 2.0) - Hugging Face 模型库
 - **[vLLM](https://github.com/vllm-project/vllm)** (0.9.2, Apache 2.0) - 高性能LLM推理引擎
-- **[vllm-ascend](https://www.hiascend.com/)** (0.9.2rc1, 需确认) - vLLM昇腾支持
+- **[vllm-ascend](https://www.hiascend.com/)** (0.9.2rc1, Apache 2.0) - vLLM昇腾支持
 - **[NumPy](https://numpy.org/)** (1.26.4, BSD 3-Clause) - 数值计算库
 - **[NetworkX](https://networkx.org/)** (3.5, BSD 3-Clause) - 图论和网络分析
 - **[Plotly](https://plotly.com/python/)** (6.4.0, MIT) - 交互式数据可视化

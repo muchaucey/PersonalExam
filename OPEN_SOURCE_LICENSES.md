@@ -58,7 +58,7 @@
 ### 6. **vllm-ascend** - vLLM昇腾支持
 - **版本**: 0.9.2rc1
 - **用途**: vLLM在昇腾NPU上的支持
-- **开源协议**: **需确认** (华为开源)
+- **开源协议**: **Apache 2.0** (华为开源)
 - **来源**: 华为昇腾社区
 
 ### 7. **NumPy** - 数值计算库
@@ -188,7 +188,7 @@
 - Lm-format-enforcer (0.10.12)
 - Compressed-tensors (0.10.2)
 - GGUF (0.17.1)
-- VLLM-ascend (0.9.2rc1) - 需确认
+- VLLM-ascend (0.9.2rc1) - Apache 2.0
 
 **其他**:
 - FFmpy (0.6.4)
@@ -271,6 +271,7 @@
 - Zipp (3.23.0)
 - Platformdirs (4.4.0)
 - Typing-extensions (4.15.0)
+- pyext (git) (https://github.com/refi64/PyExt.git)
 
 ### BSD 2-Clause License
 - Decorator (5.2.1)
@@ -295,8 +296,7 @@
 - Orjson (3.11.4) - 双重许可
 
 **需确认许可证**:
-- vllm-ascend (0.9.2rc1) - 华为开源，需查阅官方文档
-- pyext (git) - 需查阅项目许可证
+无
 
 ## 🔍 特殊依赖说明
 
@@ -305,11 +305,11 @@
 
 1. **pyext** (github.com/refi64/PyExt)
    - 用途: Python扩展工具
-   - 许可证: 需确认
+   - 许可证: **MIT License**
 
 ### 昇腾相关依赖
 - **torch-npu** (2.5.1.post1) - Apache 2.0
-- **vllm-ascend** (0.9.2rc1) - 需确认
+- **vllm-ascend** (0.9.2rc1) - Apache 2.0
 - 需要昇腾硬件和CANN工具包支持
 
 ## 📊 依赖统计
@@ -340,7 +340,7 @@
 │   ├── Accelerate (1.10.1, Apache 2.0)
 │   └── ... (更多依赖)
 ├── vLLM (0.9.2, Apache 2.0)
-│   └── vllm-ascend (0.9.2rc1, 需确认)
+│   └── vllm-ascend (0.9.2rc1, Apache 2.0)
 ├── NetworkX (3.5, BSD 3-Clause)
 │   ├── NumPy (1.26.4, BSD 3-Clause)
 │   ├── SciPy (1.15.3, BSD 3-Clause)
@@ -420,17 +420,6 @@ BUSL 1.1 是一种源代码可见的许可证，主要特点：
 - ✅ 可以商业使用
 - ✅ 无需公开源代码
 
-### 需要确认的许可证
-
-以下依赖的许可证需要进一步确认：
-
-1. **vllm-ascend** (0.9.2rc1)
-   - 来源: 华为昇腾社区
-   - 建议查阅: https://www.hiascend.com/
-
-2. **pyext** (git)
-   - 来源: GitHub
-   - 建议查阅: https://github.com/refi64/PyExt
 
 ### 项目代码许可证
 
@@ -465,13 +454,14 @@ BUSL 1.1 是一种源代码可见的许可证，主要特点：
 
 #### 1. 确认Git依赖的许可证
 
-建议查阅以下Git依赖的许可证：
-- pyext
+所有Git依赖的许可证已确认：
+- pyext: MIT License ✅
 
 #### 2. 确认昇腾相关依赖的许可证
 
-- vllm-ascend: 查阅华为昇腾社区文档
-- torch-npu: 已确认为Apache 2.0
+所有昇腾相关依赖的许可证已确认：
+- vllm-ascend: Apache 2.0 ✅
+- torch-npu: Apache 2.0 ✅
 
 #### 3. 定期更新
 

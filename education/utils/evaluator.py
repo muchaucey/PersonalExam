@@ -48,6 +48,7 @@ class PersonalizedStudentEvaluator:
         self.answer_cache = {}
         self.cache_enabled = config.get('enable_answer_cache', True)
         self.cache_max_size = config.get('answer_cache_max_size', 1000)
+        self.use_llm_evaluation = config.get('use_llm_evaluation', True)
         
         logger.info("✅ 个性化学生评估器初始化完成（带答案缓存）")
     
@@ -62,12 +63,21 @@ class PersonalizedStudentEvaluator:
                 # 返回可解释理由（不调用LLM）
                 return True, self._build_reason_for_strict(question, student_answer, True)
 
+            cache_key: Optional[str] = None
+
             # 2) 检查缓存（仅当启用缓存时）
             if self.cache_enabled:
                 cache_key = self._get_cache_key(question, student_answer)
                 if cache_key in self.answer_cache:
                     logger.debug(f"✅ 答案评估缓存命中")
                     return self.answer_cache[cache_key]
+
+            # 如果关闭LLM评估，直接返回严格判定结果
+            if not self.use_llm_evaluation:
+                result = (False, self._build_reason_for_strict(question, student_answer, False))
+                if self.cache_enabled and cache_key:
+                    self._add_to_cache(cache_key, result)
+                return result
 
             # 3) 需要LLM参与的再调用模型（优化参数以提升速度）
             if not self.llm_model.is_loaded:
@@ -99,7 +109,7 @@ class PersonalizedStudentEvaluator:
                 reason = self._build_reason_for_strict(question, student_answer, bool(is_correct))
             
             # 4) 缓存结果
-            if self.cache_enabled:
+            if self.cache_enabled and cache_key:
                 self._add_to_cache(cache_key, (is_correct, reason))
             
             return is_correct, reason
@@ -262,7 +272,7 @@ class PersonalizedStudentEvaluator:
             if keyword in text:
                 key_info.append(keyword)
         
-        interval_patterns = [r'\([^)]+\)', r'\[[^\]]+\]', r'\([^)]+\]', r'\[[^\]]+\)']
+        interval_patterns = [r'\([^)]+\)', r'\[[^\]]+\]', r'\([^)]+\)', r'\[[^\]]+\)']
         for pattern in interval_patterns:
             intervals = re.findall(pattern, text)
             key_info.extend(intervals)

@@ -139,6 +139,9 @@ EVALUATION_CONFIG = {
     "pass_score": 0.6,
     "excellent_score": 0.85,
     "enable_thinking": False,
+    "enable_answer_cache": True,  # 启用答案评估缓存
+    "answer_cache_max_size": 1000,  # 缓存最大条目数
+    "use_llm_evaluation": False,   # 默认关闭LLM评估，加速判题
 }
 
 # ==================== 可视化配置 ====================

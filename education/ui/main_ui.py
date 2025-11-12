@@ -578,7 +578,7 @@ class SmartEducationUI:
                 template="plotly_white",
                 title=dict(text=f"{major}/{minor}", x=0.5, font=dict(size=12))
             )
-            return fig
+            return fig.to_dict()
         except Exception:
             return self._create_empty_question_radar()
     def _analyze_student_with_radar(self, student_id: str, radar_type: str):
@@ -647,7 +647,7 @@ class SmartEducationUI:
             else:  # 知识点小类
                 fig = radar_generator.create_detailed_radar_chart(profile)
             
-            return fig
+            return fig.to_dict()
             
         except Exception as e:
             logger.error(f"生成雷达图失败: {e}")
@@ -677,7 +677,7 @@ class SmartEducationUI:
             template="plotly_white",
             title=dict(text="等待题目", x=0.5, font=dict(size=12))
         )
-        return fig
+        return fig.to_dict()
     
     def _create_empty_radar_chart(self):
         """创建空的学习雷达图占位"""
@@ -701,7 +701,7 @@ class SmartEducationUI:
             template="plotly_white",
             title=dict(text="等待分析", x=0.5, font=dict(size=14))
         )
-        return fig
+        return fig.to_dict()
     
     def _format_profile_markdown(self, profile: Dict[str, Any]) -> str:
         """格式化学生档案为美化的Markdown"""

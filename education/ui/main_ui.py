@@ -352,8 +352,8 @@ class SmartEducationUI:
                 gr.update(visible=True),   # submit_answer_btn
                 gr.update(visible=False),  # next_question_btn
                 gr.update(visible=False),  # feedback_box
-                ai_status_md
-                , self._generate_question_radar(session)
+                ai_status_md,
+                gr.update(value=self._generate_question_radar(session))
             )
         except Exception as e:
             logger.error(f"开始测评失败: {e}")
@@ -362,7 +362,7 @@ class SmartEducationUI:
                 f"错误: {str(e)}", "进度: 0/0", "知识点: N/A", "", 
                 "暂无数据", gr.update(), gr.update(), gr.update(visible=False),
                 "**🤖 AI状态:** 错误",
-                self._create_empty_question_radar()
+                gr.update(value=self._create_empty_question_radar())
             )
     
     def _submit_answer(self, session, answer):
@@ -437,7 +437,7 @@ class SmartEducationUI:
                 gr.update(visible=False), "",
                 gr.update(visible=True), gr.update(visible=False), "",
                 "**🤖 AI状态:** 待命中",
-                self._create_empty_question_radar()
+                gr.update(value=self._create_empty_question_radar())
             )
         
         try:
@@ -461,7 +461,7 @@ class SmartEducationUI:
                     gr.update(visible=True),     # report_area
                     report,
                     "**🤖 AI状态:** 报告已生成（盘古7B）",
-                    self._create_empty_question_radar()
+                    gr.update(value=self._create_empty_question_radar())
                 )
             
             # 加载下一题
@@ -486,8 +486,8 @@ class SmartEducationUI:
                 gr.update(visible=True),     # quiz_area
                 gr.update(visible=False),    # report_area
                 "",                          # report_display
-                ai_status
-                , self._generate_question_radar(session)
+                ai_status,
+                gr.update(value=self._generate_question_radar(session))
             )
         except Exception as e:
             logger.error(f"加载下一题失败: {e}")
@@ -497,7 +497,7 @@ class SmartEducationUI:
                 gr.update(visible=False), "", 
                 gr.update(visible=True), gr.update(visible=False), "",
                 "**🤖 AI状态:** 错误",
-                self._create_empty_question_radar()
+                gr.update(value=self._create_empty_question_radar())
             )
     
     def _restart_assessment(self):
@@ -515,7 +515,7 @@ class SmartEducationUI:
             "**当前知识点:** 请开始测评",  # current_kp_text
             "",                             # question_text (清空题目)
             "**🤖 AI状态:** 待命中",       # ai_status
-            self._create_empty_question_radar()  # question_radar_plot
+            gr.update(value=self._create_empty_question_radar())  # question_radar_plot
         )
     
     def _generate_question_radar(self, session):
@@ -578,7 +578,7 @@ class SmartEducationUI:
                 template="plotly_white",
                 title=dict(text=f"{major}/{minor}", x=0.5, font=dict(size=12))
             )
-            return fig.to_dict()
+            return fig
         except Exception:
             return self._create_empty_question_radar()
     def _analyze_student_with_radar(self, student_id: str, radar_type: str):
@@ -638,7 +638,16 @@ class SmartEducationUI:
     def _generate_radar_chart(self, profile: Dict[str, Any], radar_type: str):
         """生成雷达图"""
         try:
-            from education.visualization.radar_chart import create_radar_chart_generator
+            try:
+                from education.visualization.radar_chart import create_radar_chart_generator
+            except ModuleNotFoundError:
+                import sys
+                from pathlib import Path
+                project_root = Path(__file__).resolve().parents[2]
+                project_path = str(project_root)
+                if project_path not in sys.path:
+                    sys.path.append(project_path)
+                from education.visualization.radar_chart import create_radar_chart_generator
             
             radar_generator = create_radar_chart_generator()
             
@@ -647,7 +656,7 @@ class SmartEducationUI:
             else:  # 知识点小类
                 fig = radar_generator.create_detailed_radar_chart(profile)
             
-            return fig.to_dict()
+            return fig
             
         except Exception as e:
             logger.error(f"生成雷达图失败: {e}")
@@ -677,7 +686,7 @@ class SmartEducationUI:
             template="plotly_white",
             title=dict(text="等待题目", x=0.5, font=dict(size=12))
         )
-        return fig.to_dict()
+        return fig
     
     def _create_empty_radar_chart(self):
         """创建空的学习雷达图占位"""
@@ -701,7 +710,7 @@ class SmartEducationUI:
             template="plotly_white",
             title=dict(text="等待分析", x=0.5, font=dict(size=14))
         )
-        return fig.to_dict()
+        return fig
     
     def _format_profile_markdown(self, profile: Dict[str, Any]) -> str:
         """格式化学生档案为美化的Markdown"""

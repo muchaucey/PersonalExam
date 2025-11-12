@@ -247,17 +247,31 @@ class PersonalizedStudentEvaluator:
         # 4) 数值一致性（容差比较）
         correct_numbers = self._extract_numbers(correct_answer)
         student_numbers = self._extract_numbers(student_answer_lower)
+        
         if correct_numbers:
-            for num in correct_numbers:
-                try:
-                    val = float(num)
-                except Exception:
-                    continue
-                if not any(abs(val - float(snum)) < 1e-2 for snum in student_numbers):
+            corr_vals = [float(num) for num in correct_numbers]
+            stud_vals = [float(num) for num in student_numbers]
+            matched_indices = set()
+            for s_val in stud_vals:
+                match_index = None
+                for idx, c_val in enumerate(corr_vals):
+                    if abs(c_val - s_val) < 0.01:
+                        match_index = idx
+                        break
+                if match_index is None:
+                    # 学生的数字在标准答案中不存在
                     return False
-
-        # 5) 文本相似度与长度下限
-        if len(student_clean) < max(6, int(len(correct_clean) * 0.5)):
+                matched_indices.add(match_index)
+            # 情况1：全部数字都匹配
+            numbers_ok = len(matched_indices) == len(corr_vals)
+            # 情况2：只写出最终答案（匹配标准答案的最后一个数字）
+            if not numbers_ok:
+                if stud_vals and abs(stud_vals[-1] - corr_vals[-1]) < 0.01:
+                    numbers_ok = True
+            if not numbers_ok:
+                return False
+ 
+        if len(student_clean) < len(correct_clean) * 0.5:
             return False
 
         return True
@@ -287,11 +301,20 @@ class PersonalizedStudentEvaluator:
     
     def _extract_numbers(self, text: str) -> List[str]:
         """提取数字"""
-        return re.findall(r'-?\d+\.?\d*', text)
+        if not text:
+            return []
+        normalized = text
+        for minus in ['−', '﹣', '–', '—', '―']:
+            normalized = normalized.replace(minus, '-')
+        normalized = normalized.replace(' ', '')
+        return re.findall(r'-?\d+\.?\d*', normalized)
 
     # ==================== 规则化可解释理由（用于快速判定/回退） ====================
     def _normalize_text(self, text: str) -> str:
-        return re.sub(r'[\s\.,;!?，。；！？、]', '', (text or '').lower().strip())
+        normalized = (text or '').lower().strip()
+        for minus in ['−', '﹣', '–', '—', '―']:
+            normalized = normalized.replace(minus, '-')
+        return re.sub(r'[\s\.,;!?，。；！？、]', '', normalized)
 
     def _numbers_diff(self, std_text: str, stu_text: str, tol: float = 1e-2):
         std_nums = self._extract_numbers(std_text)

@@ -131,6 +131,7 @@ SMART_QUESTION_CONFIG = {
     
     # 题目选择优化
     "use_llm_selector": False,     # 是否使用LLM进行题目选择（默认关闭以提升速度）
+    "use_rag_selector": False,     # 是否使用RAG向量检索（默认关闭以提升速度）
     "question_radar_default": 0.5, # 雷达图默认难度/掌握度（无数据时）
 }
 

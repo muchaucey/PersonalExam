@@ -34,6 +34,7 @@ class SmartQuestionSelector:
         self.question_db = question_db
         self.config = config or {}
         self.use_llm_selector = self.config.get("use_llm_selector", False)
+        self.use_rag_selector = self.config.get("use_rag_selector", True)
         
         logger.info("✅ 智能题目选择器初始化完成")
     
@@ -60,6 +61,13 @@ class SmartQuestionSelector:
         """
         logger.info(f"🎯 为学生 {student_id} 选择题目: {major_point}/{minor_point}, "
                    f"掌握度 {student_mastery:.3f}")
+        
+        # 如果关闭RAG，直接使用多级备用方案（最快）
+        if not self.use_rag_selector:
+            logger.info("⚡ 使用快速模式：跳过RAG检索")
+            return self._multi_level_fallback_selection(
+                major_point, minor_point, student_mastery, used_question_ids
+            )
         
         # 1. 构建知识子图
         subgraph = self.rag_engine.build_knowledge_subgraph(

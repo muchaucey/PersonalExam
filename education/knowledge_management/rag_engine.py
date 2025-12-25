@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class KnowledgeGraphRAG:
-    """基于知识图谱的RAG引擎"""
+
     
     def __init__(self, knowledge_graph: nx.DiGraph, embedding_model):
         """
@@ -53,12 +53,10 @@ class KnowledgeGraphRAG:
         
         target_kp = f"KP_Minor:{major_point}/{minor_point}"
         
-        # 检查节点是否存在
         if not self.graph.has_node(target_kp):
             logger.warning(f"⚠️  知识点 {target_kp} 不在图谱中")
             return []
         
-        # 1. 获取候选题目
         candidates = self._get_candidate_questions(
             target_kp, student_mastery, used_question_ids
         )
@@ -67,7 +65,6 @@ class KnowledgeGraphRAG:
             logger.warning("⚠️  未找到候选题目")
             return []
         
-        # 2. 计算题目得分（综合多个因素）
         scored_questions = []
         for q_node, q_data in candidates:
             score = self._calculate_question_score(
@@ -83,14 +80,13 @@ class KnowledgeGraphRAG:
         scored_questions.sort(key=lambda x: x['score'], reverse=True)
         results = scored_questions[:top_k]
         
-        logger.info(f"✅ 检索到 {len(results)} 道题目")
+        logger.info(f"检索到 {len(results)} 道题目")
         return results
     
     def _get_candidate_questions(self,
                                 target_kp: str,
                                 student_mastery: float,
                                 used_question_ids: set) -> List[Tuple[str, Dict]]:
-        """获取候选题目"""
         candidates = []
         
         # 策略1：直接相关的题目

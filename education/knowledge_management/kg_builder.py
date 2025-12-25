@@ -16,61 +16,39 @@ logger = logging.getLogger(__name__)
 
 
 class KnowledgeGraphBuilder:
-    """知识图谱构建器 - 使用盘古7B"""
     
     def __init__(self, llm_model, cache_path: str = "./data/knowledge_graph.pkl"):
-        """
-        Args:
-            llm_model: 盘古7B模型
-            cache_path: 图谱缓存路径
-        """
         self.llm_model = llm_model
         self.cache_path = Path(cache_path)
         self.graph = nx.DiGraph()  # 有向图
         
-        logger.info("✅ 知识图谱构建器初始化完成")
+        logger.info("初始化完成")
     
     def build_from_questions(self, questions: List[Dict[str, Any]], 
                            force_rebuild: bool = False) -> nx.DiGraph:
-        """
-        从题目构建知识图谱
-        
-        Args:
-            questions: 题目列表
-            force_rebuild: 是否强制重建（忽略缓存）
-            
-        Returns:
-            知识图谱（NetworkX图）
-        """
-        # 检查缓存
         if not force_rebuild and self.cache_path.exists():
-            logger.info("📂 从缓存加载知识图谱...")
+            logger.info("从缓存加载知识图谱...")
             return self._load_from_cache()
         
-        logger.info(f"🔨 开始构建知识图谱（共 {len(questions)} 道题）...")
+        logger.info(f"开始构建知识图谱（共 {len(questions)} 道题）...")
         
-        # 确保盘古7B已加载
         if not self.llm_model.is_loaded:
-            logger.info("🔄 加载盘古7B模型...")
+            logger.info("加载盘古7B模型...")
             self.llm_model.load_model()
         
-        # 1. 添加基础节点（题目、知识点）
         self._add_basic_nodes(questions)
         
-        # 2. 使用盘古7B批量分析题目，提取深层关系
         self._extract_relations_with_llm(questions)
         
-        # 3. 保存缓存
         self._save_to_cache()
         
-        logger.info(f"✅ 知识图谱构建完成: {self.graph.number_of_nodes()} 个节点, "
+        logger.info(f"知识图谱构建完成: {self.graph.number_of_nodes()} 个节点, "
                    f"{self.graph.number_of_edges()} 条边")
         
         return self.graph
     
     def _add_basic_nodes(self, questions: List[Dict[str, Any]]):
-        """添加基础节点和关系"""
-        logger.info("📍 添加基础节点...")
+        logger.info("添加基础节点...")
         
         for q in questions:
             q_id = q.get('题号')
@@ -78,7 +56,6 @@ class KnowledgeGraphBuilder:
             minor = q.get('知识点小类', q.get('knowledge_point_minor', '未知'))
             difficulty = q.get('难度', 0.5)
             
-            # 添加题目节点
             self.graph.add_node(
                 f"Q{q_id}",
                 type='question',
@@ -88,7 +65,6 @@ class KnowledgeGraphBuilder:
                 difficulty=difficulty
             )
             
-            # 添加知识点节点（如果不存在）
             major_node = f"KP_Major:{major}"
             minor_node = f"KP_Minor:{major}/{minor}"
             
@@ -99,18 +75,15 @@ class KnowledgeGraphBuilder:
                 self.graph.add_node(minor_node, type='minor_point', 
                                   major=major, minor=minor, name=f"{major}/{minor}")
             
-            # 添加基础关系
             self.graph.add_edge(minor_node, major_node, relation='belongs_to')
             self.graph.add_edge(f"Q{q_id}", minor_node, relation='tests', 
                               difficulty=difficulty)
         
-        logger.info(f"✅ 基础节点添加完成: {self.graph.number_of_nodes()} 个节点")
+        logger.info(f"基础节点添加完成: {self.graph.number_of_nodes()} 个节点")
     
     def _extract_relations_with_llm(self, questions: List[Dict[str, Any]]):
-        """使用盘古7B提取深层知识关系"""
-        logger.info("🤖 使用盘古7B分析题目，提取知识关系...")
+        logger.info("使用盘古7B分析题目，提取知识关系...")
         
-        # 按知识点分组
         kp_groups = {}
         for q in questions:
             major = q.get('知识点大类', q.get('knowledge_point_major', '未知'))
@@ -120,25 +93,20 @@ class KnowledgeGraphBuilder:
                 kp_groups[key] = []
             kp_groups[key].append(q)
         
-        # 每个知识点分析一次（避免重复调用LLM）
         total_groups = len(kp_groups)
         for idx, (kp_key, kp_questions) in enumerate(kp_groups.items(), 1):
-            logger.info(f"🔍 分析知识点 {idx}/{total_groups}: {kp_key}")
+            logger.info(f"分析知识点 {idx}/{total_groups}: {kp_key}")
             
-            # 构建该知识点的上下文（最多3道题）
             sample_questions = kp_questions[:3]
             context = self._build_context(sample_questions)
             
-            # 调用盘古7B提取关系
             relations = self._call_llm_for_relations(kp_key, context)
             
-            # 添加到图谱
             self._add_relations_to_graph(kp_key, relations)
         
-        logger.info(f"✅ 知识关系提取完成: {self.graph.number_of_edges()} 条边")
+        logger.info(f"知识关系提取完成: {self.graph.number_of_edges()} 条边")
     
     def _build_context(self, questions: List[Dict[str, Any]]) -> str:
-        """构建分析上下文"""
         context_parts = []
         for q in questions:
             context_parts.append(f"""
@@ -180,25 +148,23 @@ class KnowledgeGraphBuilder:
                 max_length=512,
                 enable_thinking=False
             )
-            
-            # 解析JSON
+
             return self._parse_llm_response(response)
             
         except Exception as e:
-            logger.warning(f"⚠️  LLM分析失败: {e}")
+            logger.warning(f"LLM分析失败: {e}")
             return {'concepts': [], 'prerequisites': [], 'next_topics': [], 'methods': []}
     
     def _parse_llm_response(self, response: str) -> Dict[str, Any]:
         """解析盘古7B的JSON响应"""
         try:
-            # 提取JSON部分
             start = response.find('{')
             end = response.rfind('}') + 1
             if start != -1 and end > start:
                 json_str = response[start:end]
                 return json.loads(json_str)
         except Exception as e:
-            logger.warning(f"⚠️  JSON解析失败: {e}")
+            logger.warning(f"JSON解析失败: {e}")
         
         # 降级：正则提取
         result = {
@@ -253,20 +219,20 @@ class KnowledgeGraphBuilder:
             self.cache_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.cache_path, 'wb') as f:
                 pickle.dump(self.graph, f)
-            logger.info(f"💾 知识图谱已缓存到: {self.cache_path}")
+            logger.info(f"知识图谱已缓存到: {self.cache_path}")
         except Exception as e:
-            logger.warning(f"⚠️  缓存保存失败: {e}")
+            logger.warning(f"缓存保存失败: {e}")
     
     def _load_from_cache(self) -> nx.DiGraph:
         """从缓存加载图谱"""
         try:
             with open(self.cache_path, 'rb') as f:
                 self.graph = pickle.load(f)
-            logger.info(f"✅ 从缓存加载知识图谱: {self.graph.number_of_nodes()} 个节点, "
+            logger.info(f"从缓存加载知识图谱: {self.graph.number_of_nodes()} 个节点, "
                        f"{self.graph.number_of_edges()} 条边")
             return self.graph
         except Exception as e:
-            logger.error(f"❌ 缓存加载失败: {e}")
+            logger.error(f"缓存加载失败: {e}")
             raise
     
     def get_graph(self) -> nx.DiGraph:

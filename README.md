@@ -273,38 +273,58 @@ flowchart TD
     Auth -->|学生| StudentFlow[学生流程]
     Auth -->|教师| TeacherFlow[教师流程]
     
-    StudentFlow --> BKT1[【BKT算法】<br/>从数据库读取学生掌握度]
-    BKT1 --> RAG[【知识图谱RAG引擎】<br/>基于知识图谱检索相关题目]
-    RAG --> EntityExtract[【知识图谱】<br/>分析题目和知识点关系]
-    EntityExtract --> Selector[【题目选择器】<br/>结合BKT+RAG+知识图谱<br/>智能推荐候选题目]
-    Selector --> QuestionSelect[【盘古：题目互选】<br/>从候选题目中选择<br/>一道最合适的题目]
-    QuestionSelect --> Answer[学生答题]
-    Answer --> AnswerJudge[【盘古：答案评判】<br/>评判答案正误]
-    AnswerJudge --> SaveDB[【数据库】<br/>保存答题记录]
-    SaveDB --> BKT2[【BKT算法】<br/>更新学生掌握度到数据库]
-    BKT2 --> Decision{还有题目?}
-    Decision -->|是| Next[继续下一题]
-    Decision -->|否| Analysis[【盘古：分析总结】<br/>分析学习情况<br/>生成总结报告]
-    Next --> BKT1
-    Analysis --> Report[生成学习报告]
-    Report --> End([结束])
+    StudentFlow --> StartAssess[开始智能测评]
+    StartAssess --> GenProfile[【BKT算法】<br/>生成学生画像]
+    GenProfile --> SelectKP{选择目标知识点}
+    SelectKP -->|70%概率| WeakKP[优先选择薄弱知识点]
+    SelectKP -->|30%概率| RandomKP[随机选择知识点]
+    WeakKP --> GetMastery[【BKT算法】<br/>获取学生掌握度]
+    RandomKP --> GetMastery
     
-    TeacherFlow --> Manage[【教师管理功能】<br/>题库管理、学生管理、数据查看]
+    GetMastery --> QuestionSelect[【题目选择器】<br/>智能选择题目]
+    QuestionSelect --> RAGStrategy{知识图谱RAG检索}
+    RAGStrategy -->|成功| RAGSelected[返回RAG推荐题目]
+    RAGStrategy -->|失败| Fallback[多级SQL备用方案<br/>1.精确匹配 2.大类+难度<br/>3.大类匹配 4.任意题目]
+    RAGSelected --> CreateSession[创建测评会话]
+    Fallback --> CreateSession
+    
+    CreateSession --> DisplayQ[显示题目]
+    DisplayQ --> Answer[学生答题]
+    Answer --> SubmitAnswer[提交答案]
+    
+    SubmitAnswer --> AnswerJudge[【盘古7B模型】<br/>智能答案评估<br/>支持答案缓存优化]
+    AnswerJudge --> BKTUpdate[【BKT算法】<br/>更新学生掌握度]
+    BKTUpdate --> SaveDB[【SQLite数据库】<br/>保存答题记录]
+    
+    SaveDB --> CheckMore{还有题目?}
+    CheckMore -->|是| PreSelectNext[预选下一题<br/>选择知识点+选择题目]
+    CheckMore -->|否| GenerateReport[【盘古7B模型】<br/>生成学习分析报告]
+    
+    PreSelectNext --> NextQuestion[加载下一题]
+    NextQuestion --> DisplayQ
+    
+    GenerateReport --> ShowReport[显示学习报告<br/>包含掌握度、薄弱点、<br/>进步趋势等]
+    ShowReport --> End([结束])
+    
+    TeacherFlow --> Manage[【教师管理功能】<br/>题库管理、学生管理、<br/>系统监控、知识图谱管理]
     
     style Start fill:#E8F5E9
     style Auth fill:#FFF3E0
     style StudentFlow fill:#E3F2FD
     style TeacherFlow fill:#F3E5F5
-    style BKT1 fill:#E3F2FD
-    style RAG fill:#F3E5F5
-    style EntityExtract fill:#FFF3E0
-    style Selector fill:#E1BEE7
-    style QuestionSelect fill:#FFE0B2
+    style GenProfile fill:#E3F2FD
+    style SelectKP fill:#FFF3E0
+    style WeakKP fill:#FFE0B2
+    style GetMastery fill:#E3F2FD
+    style QuestionSelect fill:#E1BEE7
+    style RAGStrategy fill:#F3E5F5
+    style RAGSelected fill:#C8E6C9
+    style Fallback fill:#FFF9C4
     style AnswerJudge fill:#FFE0B2
+    style BKTUpdate fill:#E3F2FD
     style SaveDB fill:#C8E6C9
-    style BKT2 fill:#E3F2FD
-    style Analysis fill:#FFE0B2
-    style Report fill:#C8E6C9
+    style GenerateReport fill:#FFE0B2
+    style ShowReport fill:#C8E6C9
     style End fill:#FFCDD2
     style Manage fill:#E1BEE7
 ```

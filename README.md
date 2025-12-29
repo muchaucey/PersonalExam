@@ -2,7 +2,7 @@
 
 **Personalized Question Generation System Based on LLM and Knowledge Graph Collaboration**
 
-[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](GitHub link)
+[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](https://github.com/sribdcn/PersonalExam)
 [![Python](https://img.shields.io/badge/python-3.11.12-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-BSL%201.1-orange.svg)](LICENSE)
 
@@ -560,14 +560,14 @@ BSL 1.1 是一种源代码可见的许可证，允许：
 ```
 基于LLM和知识图谱协同的个性化出题系统. 
 AI系统与应用课题组, 深圳市大数据研究院 (SRIBD), 2025.
-GitHub link
+https://github.com/sribdcn/PersonalExam
 ```
 
 **英文引用格式**：
 ```
 Personalized Question Generation System Based on LLM and Knowledge Graph Collaboration.
 AI System and Application Research Group, Shenzhen Research Institute of Big Data (SRIBD), 2025.
-GitHub link
+https://github.com/sribdcn/PersonalExam
 ```
 
 **BibTeX格式**：
@@ -577,7 +577,7 @@ GitHub link
   author = {AI系统与应用课题组},
   organization = {深圳市大数据研究院 (SRIBD)},
   year = {2025},
-  url = {GitHub link}
+  url = {https://github.com/sribdcn/PersonalExam}
 }
 ```
 ```bibtex
@@ -586,7 +586,7 @@ GitHub link
   author = {AI System and Application Research Group},
   organization = {Shenzhen Research Institute of Big Data (SRIBD)},
   year = {2025},
-  url = {GitHub link}
+  url = {https://github.com/sribdcn/PersonalExam}
 }
 ```
 
@@ -626,7 +626,7 @@ We thank the Shenzhen Research Institute of Big Data (SRIBD) and the AI System a
 
 ### 报告问题
 
-如果发现问题，请在 [Issues](GitHub link /issues) 中报告，包括：
+如果发现问题，请在 [Issues](https://github.com/sribdcn/PersonalExam /issues) 中报告，包括：
 - 问题描述
 - 复现步骤
 - 预期行为

@@ -18,20 +18,20 @@
 
 ## 📋 目录
 
-- [功能特性](#-功能特性)
-- [技术架构](#-技术架构)
-- [系统要求](#-系统要求)
+- [功能特性](#功能特性)
+- [技术架构](#技术架构)
+- [系统要求](#系统要求)
   - [硬件要求](#硬件要求)
   - [软件要求](#软件要求)
   - [部署环境](#部署环境)
-- [配置说明](#️-配置说明)
-- [使用指南](#-使用指南)
-- [项目结构](#-项目结构)
-- [开源许可证](#-开源许可证)
-- [贡献指南](#-贡献指南)
-- [常见问题](#-常见问题)
-- [更新日志](#-更新日志)
-- [相关资源](#-相关资源)
+- [配置说明](#配置说明)
+- [使用指南](#使用指南)
+- [项目结构](#项目结构)
+- [开源许可证](#开源许可证)
+- [贡献指南](#贡献指南)
+- [常见问题](#常见问题)
+- [更新日志](#更新日志)
+- [相关资源](#相关资源)
 - [免责声明](#免责声明)
 - [反馈](#反馈)
 
@@ -276,55 +276,6 @@ flowchart TD
     style Report fill:#C8E6C9
     style End fill:#FFCDD2
     style Manage fill:#E1BEE7
-```
-
-### 系统架构
-
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryBackgroundColor':'#ffffff', 'primaryTextColor':'#000000', 'primaryBorderColor':'#333333', 'lineColor':'#333333', 'edgeLabelBackground':'#ffffff', 'secondaryColor':'#f0f0f0', 'tertiaryColor':'#ffffff', 'mainBkgColor':'#ffffff', 'secondBkgColor':'#f5f5f5', 'tertiaryBkgColor':'#ffffff', 'background':'#ffffff', 'primaryColor':'#ffffff'}}}%%
-graph TB
-    subgraph 前端层["前端层"]
-        UI[Gradio UI界面<br/>enhanced_main_ui.py]
-        Login[登录注册系统]
-    end
-    
-    subgraph 业务逻辑层["业务逻辑层"]
-        Core[系统核心<br/>system_core_db.py]
-        BKT[BKT算法适配器<br/>bkt_database_adapter.py]
-        RAG[RAG引擎<br/>rag_engine.py]
-        KG[知识图谱构建器<br/>kg_builder.py]
-    end
-    
-    subgraph 数据层["数据层"]
-        DB[(SQLite数据库<br/>database.py)]
-        Cache[知识图谱缓存<br/>knowledge_graph.pkl]
-    end
-    
-    subgraph 模型层["模型层"]
-        LLM[盘古7B模型<br/>llm_models.py]
-        Embed[BGE嵌入模型<br/>embedding_model.py]
-    end
-    
-    UI --> Login
-    Login --> Core
-    Core --> BKT
-    Core --> RAG
-    Core --> KG
-    BKT --> DB
-    RAG --> KG
-    RAG --> Embed
-    KG --> LLM
-    KG --> Cache
-    Core --> DB
-    Core --> LLM
-    Core --> Embed
-    
-    style UI fill:#BBDEFB
-    style Login fill:#C8E6C9
-    style Core fill:#FFF9C4
-    style DB fill:#FFE0B2
-    style LLM fill:#E1BEE7
-    style Embed fill:#E1BEE7
 ```
 
 ## 💻 系统要求

@@ -194,14 +194,14 @@ graph LR
     end
     
     subgraph 深度学习框架["深度学习框架"]
-        PyTorch["PyTorch 2.5.1<br/>BSD 3-Clause"]
-        TorchNPU["torch-npu 2.5.1<br/>Apache 2.0"]
+        PyTorch["PyTorch<br/>BSD 3-Clause"]
+        TorchNPU["torch-npu<br/>Apache 2.0"]
     end
     
     subgraph 模型库["模型库"]
         Transformers["Transformers 4.53.2<br/>Apache 2.0"]
-        VLLM["vLLM 0.9.2<br/>Apache 2.0"]
-        VLLMAscend["vllm-ascend 0.9.2rc1"]
+        Accelerate["Accelerate 1.10.1<br/>Apache 2.0"]
+        SentenceTransformers["sentence-transformers 5.1.1<br/>Apache 2.0"]
     end
     
     subgraph 数据处理["数据处理"]
@@ -213,7 +213,11 @@ graph LR
     subgraph 图论可视化["图论与可视化"]
         NetworkX["NetworkX 3.5<br/>BSD 3-Clause"]
         Plotly["Plotly 6.4.0<br/>MIT"]
-        Matplotlib["Matplotlib<br/>Matplotlib License"]
+        Matplotlib["Matplotlib 3.10.6<br/>Matplotlib License"]
+    end
+    
+    subgraph 数据库["数据库"]
+        SQLite["SQLite<br/>Public Domain"]
     end
     
     subgraph AI模型["AI模型"]
@@ -230,23 +234,34 @@ graph LR
     PyTorch --> TorchNPU
     TorchNPU --> NPU
     Transformers --> OpenPangu
-    Transformers --> BGE
-    VLLM --> VLLMAscend
-    VLLMAscend --> NPU
+    Transformers --> Accelerate
+    Accelerate --> NPU
+    SentenceTransformers --> BGE
+    SentenceTransformers --> Transformers
     OpenPangu --> NPU
+    BGE --> NPU
     
     NumPy --> PyTorch
     Pandas --> NumPy
     SciPy --> NumPy
     NetworkX --> NumPy
     Plotly --> NumPy
+    Matplotlib --> NumPy
+    
+    SQLite --> Gradio
     
     style Gradio fill:#BBDEFB
     style PyTorch fill:#C8E6C9
     style Transformers fill:#FFF9C4
+    style Accelerate fill:#FFF9C4
+    style SentenceTransformers fill:#FFF9C4
     style OpenPangu fill:#FFE0B2
     style BGE fill:#FFE0B2
     style NPU fill:#E0E0E0
+    style SQLite fill:#C8E6C9
+    style NetworkX fill:#E1BEE7
+    style Plotly fill:#E1BEE7
+    style Matplotlib fill:#E1BEE7
 ```
 
 ### 核心算法流程
